@@ -1377,8 +1377,7 @@
 
         // ===================== RC: evaluar reglas comerciales =====================
         var rcDescuentoPendiente = null;             // valor abs a insertar en Vigente al cerrar
-        var rcRgId = null;                           // id de la regla comercial priorizada (rg_id para el insert)
-        var rcNombre = '';                           // nombre de la regla, prefijo de la observación del insert
+        var rcReglas = [];                           // reglas aplicadas [{id, nombre, descuento}] -> 1 insert por regla
         var rcPeriodos = { actual: '', proximo: '' };
 
         function rcCalcPeriodos() {
@@ -1508,7 +1507,7 @@
 
         function evaluarRc(cual) {
             var periodo = (cual === 'proximo') ? rcPeriodos.proximo : rcPeriodos.actual;
-            rcRgId = null; rcNombre = '';
+            rcReglas = [];
             var dni = '{{ dni_titular }}';
             if (!dni || dni === '0') {
                 rcShowStatus('<div class="rc-error">No se encontró el DNI del titular del grupo.</div>' + rcCerrarBtn('Cerrar'));
@@ -1539,8 +1538,7 @@
                     return;
                 }
                 rcDescuentoPendiente = Math.abs(calc.total);
-                rcRgId = (calc.primary && calc.primary.id != null) ? calc.primary.id : null;
-                rcNombre = (calc.primary && calc.primary.nombre) ? calc.primary.nombre : '';
+                rcReglas = calc.reglas.map(function (r) { return { id: r.id, nombre: r.nombre, descuento: r.descuento }; });
                 rcShowStatus(rcRenderResult(calc, periodo));
             })
             .catch(function (err) {
@@ -1801,7 +1799,7 @@
             } else {
                 const p = parseFloat(document.getElementById('api_porcentaje').value) || 0;
                 const prc = parseFloat(document.getElementById('api_porcentaje_rc').value) || 0;
-                const rcOk = (prc > 0 && prc <= 100 && !!rcRgId);
+                const rcOk = (prc > 0 && prc <= 100 && rcReglas.length > 0);
                 ok = (p > 0 && p <= 100) || rcOk;
                 motivo = 'Ingrese un porcentaje válido (1-100). El % R.C. requiere evaluar reglas comerciales (botón RC).';
             }
@@ -1910,14 +1908,18 @@
                 items.push({ peri_desde: desde, peri_hasta: hasta, porcentaje: pNuevo, observacion: observacion });
             }
             if (pRc > 0 && pRc <= 100) {
-                if (!rcRgId) {
-                    lastBonifError = 'El % R.C. requiere evaluar reglas comerciales (botón RC) para obtener la regla (rg_id).';
+                if (!rcReglas.length) {
+                    lastBonifError = 'El % R.C. requiere evaluar reglas comerciales (botón RC) para obtener la(s) regla(s).';
                     setBonifBtn('error');
                     return;
                 }
-                // Prefijo con el nombre de la regla + id: "[Nombre (regla comercial 6038)] - <obs usuario>"
-                const obsRc = '[' + (rcNombre || 'Regla comercial') + ' (regla comercial ' + rcRgId + ')] - ' + observacion;
-                items.push({ peri_desde: desde, peri_hasta: hasta, porcentaje: pRc, rg_id: rcRgId, observacion: obsRc });
+                // Un insert por regla aplicada, cada uno con su rg_id y su descuento.
+                // Observación prefijada con el nombre + id: "[Nombre (regla comercial 6038)] - <obs usuario>"
+                rcReglas.forEach(function (r) {
+                    if (r.id == null || !r.descuento) return;
+                    const obsRc = '[' + (r.nombre || 'Regla comercial') + ' (regla comercial ' + r.id + ')] - ' + observacion;
+                    items.push({ peri_desde: desde, peri_hasta: hasta, porcentaje: Math.abs(r.descuento), rg_id: r.id, observacion: obsRc });
+                });
             }
             if (!items.length) { lastBonifError = 'Ingrese un porcentaje mayor a 0.'; setBonifBtn('error'); return; }
 
