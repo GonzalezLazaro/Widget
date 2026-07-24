@@ -1815,35 +1815,45 @@ def cargar_bonificacion_externa(request, grupo):
         headers = {"Content-Type": "application/json", "X-API-Token": api_token}
         api_url = f"https://bonificaciones.nobis.com.ar/api/individuales/{grupo}/insertar"
 
-        def _insertar(peri_desde, peri_hasta, porcentaje):
+        def _insertar(peri_desde, peri_hasta, porcentaje, rg_id=None, obs=None):
+            # obs por-item (ej. bonificación de regla comercial con su prefijo);
+            # si no viene, se usa la observación general del request.
+            obs_final = obs if obs else observacion
             payload = {
                 "peri_desde": peri_desde,
                 "peri_hasta": peri_hasta,
                 "porcentaje": porcentaje,
                 "modo": "forzar",            # fijo, no visible al usuario
-                "observacion": observacion,
+                "observacion": obs_final,
                 "usuario": usuario_api,
-                "grupo": grupo_api,
             }
+            # Insert de regla comercial: lleva rg_id (id de la regla) y NO 'grupo'.
+            # Insert manual: lleva 'grupo' (grupo RBAC que concede) y NO rg_id.
+            if rg_id is not None:
+                payload["rg_id"] = rg_id
+            else:
+                payload["grupo"] = grupo_api
             r = requests.post(api_url, json=payload, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
             ok = r.status_code in (200, 201)
             registrar(request, action="enviar_bonificacion", recurso="accion.enviar_bonificacion", target_type="grupo",
                       target_id=grupo, response_status=r.status_code, success=ok,
                       payload_summary={"peri_desde": peri_desde, "peri_hasta": peri_hasta,
-                                       "porcentaje": porcentaje},
+                                       "porcentaje": porcentaje, "rg_id": rg_id},
                       error_detail="" if ok else r.text)
             return {
                 "ok": ok,
                 "peri_desde": peri_desde,
                 "peri_hasta": peri_hasta,
                 "porcentaje": porcentaje,
+                "rg_id": rg_id,
                 "detalle": (None if ok else r.text),
             }
 
         # --- Modo escalonado: varios tramos, "seguir y reportar" ---
         if tramos:
             resultados = [
-                _insertar(t.get("peri_desde"), t.get("peri_hasta"), t.get("porcentaje"))
+                _insertar(t.get("peri_desde"), t.get("peri_hasta"), t.get("porcentaje"),
+                          rg_id=t.get("rg_id"), obs=t.get("observacion"))
                 for t in tramos
             ]
             fallidos = [x for x in resultados if not x["ok"]]
