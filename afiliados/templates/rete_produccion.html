@@ -378,6 +378,48 @@
         }
         .bonif-api-btn:hover { background-color: #006b00; }
 
+        /* Botón "RC" (Reglas Comerciales): consulta bonificación adicional en Gecros */
+        .bonif-rc-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 4px;
+            cursor: pointer;
+            border: none;
+            background-color: #008000;
+            color: #ffffff;
+            border-radius: 6px;
+            height: 24px;
+            padding: 0 7px;
+            font-size: 0.68em;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            vertical-align: middle;
+            transition: background-color 0.15s ease;
+        }
+        .bonif-rc-btn:hover { background-color: #006b00; }
+
+        /* Modal RC */
+        #rc-modal { max-width: 380px; width: 90%; }
+        #rc-modal .rc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        #rc-modal .rc-header h3 { margin: 0; font-size: 1.05em; color: #006b00; }
+        .rc-periodo-btns { display: flex; flex-direction: column; gap: 8px; }
+        .rc-periodo-btn { cursor: pointer; border: 1px solid #cfd8cf; background: #f4f8f4; border-radius: 8px; padding: 10px 12px; font-size: 0.9em; font-weight: 700; color: #006b00; text-align: left; transition: border-color .15s ease, background .15s ease; }
+        .rc-periodo-btn:hover:not(:disabled) { border-color: #008000; background: #e9f3e9; }
+        .rc-periodo-btn small { display: block; font-weight: 400; color: #666; font-size: 0.82em; }
+        .rc-periodo-btn:disabled { opacity: 0.55; cursor: default; }
+        .rc-result { text-align: left; font-size: 0.9em; color: #222; }
+        .rc-result .rc-motivo { color: #444; margin: 6px 0; line-height: 1.35; }
+        .rc-result .rc-desc { font-size: 1.4em; font-weight: 800; color: #008000; }
+        .rc-result .rc-extra { margin-top: 8px; border-top: 1px dashed #d5ddd5; padding-top: 8px; }
+        .rc-result .rc-extra-item { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85em; color: #444; }
+        .rc-result .rc-total { margin-top: 8px; font-weight: 800; color: #006b00; }
+        .rc-empty { text-align: center; color: #777; font-size: 0.9em; padding: 10px 0; }
+        .rc-error { text-align: center; color: #c62828; font-size: 0.85em; padding: 8px 0; white-space: pre-line; }
+        .rc-status { text-align: center; color: #666; font-size: 0.9em; padding: 12px 0; }
+        .rc-close-insert { margin-top: 14px; width: 100%; cursor: pointer; border: none; background-color: #008000; color: #fff; border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.9em; transition: background-color .15s ease; }
+        .rc-close-insert:hover { background-color: #006b00; }
+
         /* Dos inputs de bonificación (Vigente + Manual) + botón, en una sola fila */
         .bonif-inputs-row { display: flex; align-items: flex-end; gap: 4px; }
         .bonif-field-mini { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -1109,7 +1151,7 @@
                                                     <label class="bonif-mini" for="bonif_manual">Nuevo</label>
                                                     <input type="number" min="0" max="100" id="bonif_manual" name="bonif_manual" value="0" oninput="this.value = Math.min(Math.max(this.value, 0), 100)">
                                                 </div>
-                                                <button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                <button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
                                             </div>
                                             <div id="tramos-editor" style="display:none;">
                                                 <div class="bonif-field bonif-month tramo-inicio-field" data-target="tramo_inicio">
@@ -1146,7 +1188,7 @@
                                                     <label class="bonif-mini" for="bonif_manual">Nuevo</label>
                                                     <input type="number" min="0" max="100" id="bonif_manual" name="bonif_manual" value="0" oninput="this.value = Math.min(Math.max(this.value, 0), 100)">
                                                 </div>
-                                                <button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                <button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
                                             </div>
                                             <div id="tramos-editor" style="display:none;">
                                                 <div class="bonif-field bonif-month tramo-inicio-field" data-target="tramo_inicio">
@@ -1187,7 +1229,7 @@
                                                     <label class="bonif-mini" for="bonif_manual">Nuevo</label>
                                                     <input type="number" min="0" max="100" id="bonif_manual" name="bonif_manual" value="0" oninput="this.value = Math.min(Math.max(this.value, 0), 100)">
                                                 </div>
-                                                <button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                <button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn" title="Enviar a Gecros" aria-label="Cargar bonificación en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
                                             </div>
                                             <div id="tramos-editor" style="display:none;">
                                                 <div class="bonif-field bonif-month tramo-inicio-field" data-target="tramo_inicio">
@@ -1284,12 +1326,200 @@
         </div>
     </div>
 
+    <!-- Modal RC: evaluar reglas comerciales del grupo familiar -->
+    <div class="modal-overlay" id="rc-modal-overlay"></div>
+    <div class="modal" id="rc-modal">
+        <button class="close-button" onclick="closeRcModal()" aria-label="Cerrar">X</button>
+        <div class="modal-content">
+            <div class="rc-header">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#006b00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <h3>Reglas comerciales</h3>
+            </div>
+
+            <!-- Paso 1: elegir período -->
+            <div id="rc-step-periodo">
+                <p style="font-size:0.85em;color:#555;margin:0 0 10px;">Evaluar bonificación adicional para el período:</p>
+                <div class="rc-periodo-btns">
+                    <button type="button" class="rc-periodo-btn" id="rc-btn-actual" onclick="evaluarRc('actual')"></button>
+                    <button type="button" class="rc-periodo-btn" id="rc-btn-proximo" onclick="evaluarRc('proximo')"></button>
+                </div>
+            </div>
+
+            <!-- Paso 2: resultado -->
+            <div id="rc-step-result" style="display:none;"></div>
+        </div>
+    </div>
+
     <script>
 
         function validarEntrada(input) {
             // Eliminar caracteres no numéricos
             input.value = input.value.replace(/[^0-9]/g, '');
         }
+
+
+        // ===================== RC: evaluar reglas comerciales =====================
+        var rcDescuentoPendiente = null;             // valor abs a insertar en Vigente al cerrar
+        var rcPeriodos = { actual: '', proximo: '' };
+
+        function rcCalcPeriodos() {
+            var now = new Date();
+            var actual = '' + now.getFullYear() + bonifPad2(now.getMonth() + 1);
+            var nd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            var proximo = '' + nd.getFullYear() + bonifPad2(nd.getMonth() + 1);
+            return { actual: actual, proximo: proximo };
+        }
+
+        function rcFmtPeriodo(yyyymm) {
+            // "202607" -> "julio 2026"
+            var meses = (typeof BONIF_MESES_FULL !== 'undefined') ? BONIF_MESES_FULL
+                : ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+            var m = parseInt(String(yyyymm).slice(4, 6), 10) - 1;
+            return (meses[m] || '') + ' ' + String(yyyymm).slice(0, 4);
+        }
+
+        function openRcModal() {
+            rcDescuentoPendiente = null;
+            rcPeriodos = rcCalcPeriodos();
+            document.getElementById('rc-step-result').style.display = 'none';
+            document.getElementById('rc-step-result').innerHTML = '';
+            document.getElementById('rc-step-periodo').style.display = 'block';
+            var bA = document.getElementById('rc-btn-actual');
+            var bP = document.getElementById('rc-btn-proximo');
+            bA.disabled = false; bP.disabled = false;
+            bA.innerHTML = 'Período actual <small>' + rcFmtPeriodo(rcPeriodos.actual) + ' (' + rcPeriodos.actual + ')</small>';
+            bP.innerHTML = 'Período próximo <small>' + rcFmtPeriodo(rcPeriodos.proximo) + ' (' + rcPeriodos.proximo + ')</small>';
+            document.getElementById('rc-modal').style.display = 'block';
+            document.getElementById('rc-modal-overlay').style.display = 'block';
+        }
+
+        function closeRcModal() {
+            if (rcDescuentoPendiente != null) {
+                var inp = document.querySelector('#bonif_vigente');
+                if (inp) inp.value = rcDescuentoPendiente;
+            }
+            rcDescuentoPendiente = null;
+            document.getElementById('rc-modal').style.display = 'none';
+            document.getElementById('rc-modal-overlay').style.display = 'none';
+        }
+
+        function rcShowStatus(html) {
+            document.getElementById('rc-step-periodo').style.display = 'none';
+            var r = document.getElementById('rc-step-result');
+            r.style.display = 'block';
+            r.innerHTML = html;
+        }
+
+        function rcCerrarBtn(label) {
+            return '<button type="button" class="rc-close-insert" onclick="closeRcModal()">' + (label || 'Cerrar') + '</button>';
+        }
+
+        function rcEsc(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // Agrupa matches por (nombre+orden) y toma el tier de mayor magnitud por regla.
+        // Regla prioritaria = menor 'orden'. Si es acumulable, suma todas las acumulables;
+        // si no, va sola. Devuelve {primary, reglas, total} o null si no hay bonificación.
+        function rcCalcular(data) {
+            if (!data || data.ok === false) return null;
+            if (data.evaluado && data.evaluado.gecros === false) return null;
+            var grupos = data.grupos || [];
+            if (!grupos.length) return null;
+            var matches = [];
+            grupos.forEach(function (g) { (g.matches || []).forEach(function (m) { matches.push(m); }); });
+            if (!matches.length) return null;
+
+            var reglasMap = {};
+            matches.forEach(function (m) {
+                var key = (m.nombre || '') + '|' + (m.orden != null ? m.orden : '');
+                var mag = Math.abs(parseFloat(m.descuento) || 0);
+                if (!reglasMap[key] || mag > reglasMap[key]._mag) {
+                    reglasMap[key] = {
+                        nombre: m.nombre || 'Regla comercial',
+                        orden: (m.orden != null ? m.orden : 9999),
+                        descuento: parseFloat(m.descuento) || 0,
+                        acumular: !!m.acumular,
+                        motivo: m.motivo || '',
+                        _mag: mag
+                    };
+                }
+            });
+            var reglas = Object.keys(reglasMap).map(function (k) { return reglasMap[k]; });
+            if (!reglas.length) return null;
+            reglas.sort(function (a, b) { return a.orden - b.orden; });
+            var primary = reglas[0];
+
+            var total, aplicadas;
+            if (primary.acumular) {
+                aplicadas = reglas.filter(function (r) { return r.acumular; });
+                total = aplicadas.reduce(function (a, r) { return a + r.descuento; }, 0);
+            } else {
+                aplicadas = [primary];
+                total = primary.descuento;
+            }
+            return { primary: primary, reglas: aplicadas, total: total };
+        }
+
+        function rcRenderResult(calc, periodo) {
+            var p = calc.primary;
+            var html = '<div class="rc-result">';
+            html += '<h3 style="margin:0 0 4px;color:#006b00;font-size:1.05em;">' + rcEsc(p.nombre) + '</h3>';
+            html += '<div style="font-size:0.78em;color:#888;">' + rcFmtPeriodo(periodo) + '</div>';
+            html += '<p class="rc-motivo">' + rcEsc(p.motivo) + '</p>';
+            html += '<div class="rc-desc">' + p.descuento + '%</div>';
+            if (calc.reglas.length > 1) {
+                html += '<div class="rc-extra">';
+                calc.reglas.forEach(function (r) {
+                    html += '<div class="rc-extra-item"><span>' + rcEsc(r.nombre) + '</span><span>' + r.descuento + '%</span></div>';
+                });
+                html += '</div>';
+                html += '<div class="rc-total">Total acumulado: ' + calc.total + '% &rarr; se insertará ' + Math.abs(calc.total) + '</div>';
+            }
+            html += '</div>';
+            html += rcCerrarBtn('Cerrar e insertar');
+            return html;
+        }
+
+        function evaluarRc(cual) {
+            var periodo = (cual === 'proximo') ? rcPeriodos.proximo : rcPeriodos.actual;
+            var dni = '{{ dni_titular }}';
+            if (!dni || dni === '0') {
+                rcShowStatus('<div class="rc-error">No se encontró el DNI del titular del grupo.</div>' + rcCerrarBtn('Cerrar'));
+                return;
+            }
+            var bA = document.getElementById('rc-btn-actual');
+            var bP = document.getElementById('rc-btn-proximo');
+            if (bA) bA.disabled = true;
+            if (bP) bP.disabled = true;
+            rcShowStatus('<div class="rc-status">Evaluando…</div>');
+
+            fetch('/widget/api/evaluar_bonificacion/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+                body: JSON.stringify({ dni: dni, periodo: periodo })
+            })
+            .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
+            .then(function (res) {
+                if (!res.ok) {
+                    var msg = (res.d && res.d.error) ? res.d.error : ('Error ' + res.status);
+                    rcShowStatus('<div class="rc-error">' + rcEsc(msg) + '</div>' + rcCerrarBtn('Cerrar'));
+                    return;
+                }
+                var calc = rcCalcular(res.d);
+                if (!calc) {
+                    rcDescuentoPendiente = null;
+                    rcShowStatus('<div class="rc-empty">Sin bonificación adicional para ' + rcFmtPeriodo(periodo) + '.</div>' + rcCerrarBtn('Cerrar'));
+                    return;
+                }
+                rcDescuentoPendiente = Math.abs(calc.total);
+                rcShowStatus(rcRenderResult(calc, periodo));
+            })
+            .catch(function (err) {
+                rcShowStatus('<div class="rc-error">Error de red: ' + rcEsc(err && err.message ? err.message : err) + '</div>' + rcCerrarBtn('Cerrar'));
+            });
+        }
+        // =================== fin RC ===================
 
 
         // Formateador de moneda (ARS)
@@ -2255,6 +2485,7 @@
     </script>
     {% if not widget_perms.cotizar %}<style>#Cotizar,#btn_cotizar{display:none!important}</style>{% endif %}
     {% if not widget_perms.enviar_bonificacion %}<style>.bonif-api-btn,.tramos-gecros-btn,#bonif_api_submit{display:none!important}</style>{% endif %}
+    {% if not widget_perms.evaluar_bonificacion %}<style>.bonif-rc-btn{display:none!important}</style>{% endif %}
     {% load static %}
     <script>window.WIDGET_AUTH = Object.assign({{ widget_auth_json|safe }}, {role: "bloqueado"});</script>
     <script src="{% static 'afiliados/js/widget-auth.js' %}"></script>

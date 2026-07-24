@@ -13,6 +13,7 @@ class AuditLog(models.Model):
         ("crear_remito", "Crear remito"),
         ("asignar_generador", "Asignar generador"),
         ("enviar_bonificacion", "Enviar bonificación"),
+        ("evaluar_bonificacion", "Evaluar bonificación"),
         ("admin_permisos_guardar", "Guardar permisos"),
         ("admin_grupo_crear", "Crear grupo"),
         ("admin_grupo_eliminar", "Eliminar grupo"),
