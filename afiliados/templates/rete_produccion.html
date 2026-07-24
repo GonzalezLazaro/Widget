@@ -289,7 +289,8 @@
 
         /* Porcentaje readonly: distinto de un input normal y de uno deshabilitado */
         .bonif-pct-wrap { position: relative; }
-        #bonif-api-modal #api_porcentaje {
+        #bonif-api-modal #api_porcentaje,
+        #bonif-api-modal #api_porcentaje_rc {
             background-color: #eef6ee;
             color: #006b00;
             font-weight: 700;
@@ -307,6 +308,14 @@
             color: #006b00;
             pointer-events: none;
         }
+
+        /* Marcador de estado de consulta de reglas comerciales (junto al input % R.C.) */
+        .rc-estado { display: inline-flex; align-items: center; gap: 4px; font-size: 0.6em; font-weight: 700; text-transform: uppercase; letter-spacing: .3px; padding: 1px 7px; border-radius: 999px; vertical-align: middle; }
+        .rc-estado::before { content: ''; width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+        .rc-estado--no { background: #fbeee0; color: #9a6a1f; }
+        .rc-estado--no::before { background: #e0972a; }
+        .rc-estado--ok { background: #e7f2e7; color: #2f7a2f; }
+        .rc-estado--ok::before { background: #2f9a2f; }
 
         /* Botón Enviar (muestra el resultado dentro del propio botón: cargando / ✔ / ✕) */
         .bonif-api-submit {
@@ -1319,7 +1328,7 @@
                         </div>
                     </div>
                     <div class="bonif-field">
-                        <label for="api_porcentaje_rc">% R.C.</label>
+                        <label for="api_porcentaje_rc">% R.C. <span id="rc-consulta-estado" class="rc-estado rc-estado--no">Sin consultar</span></label>
                         <div class="bonif-pct-wrap">
                             <input type="number" id="api_porcentaje_rc" readonly>
                             <span class="bonif-pct-suffix">%</span>
@@ -1378,6 +1387,7 @@
         // ===================== RC: evaluar reglas comerciales =====================
         var rcDescuentoPendiente = null;             // valor abs a insertar en Vigente al cerrar
         var rcReglas = [];                           // reglas aplicadas [{id, nombre, descuento}] -> 1 insert por regla
+        var rcConsultado = false;                    // ¿se consultó RC al menos una vez? (requisito para poder insertar)
         var rcPeriodos = { actual: '', proximo: '' };
 
         function rcCalcPeriodos() {
@@ -1531,6 +1541,9 @@
                     rcShowStatus('<div class="rc-error">' + rcEsc(msg) + '</div>' + rcCerrarBtn('Cerrar'));
                     return;
                 }
+                // Consulta OK (haya o no reglas): habilita la carga de bonificaciones.
+                rcConsultado = true;
+                updateRcConsultaEstado();
                 var calc = rcCalcular(res.d);
                 if (!calc) {
                     rcDescuentoPendiente = null;
@@ -1772,6 +1785,18 @@
         }
 
         // ---- Abrir / cerrar / enviar ----
+        function updateRcConsultaEstado() {
+            var el = document.getElementById('rc-consulta-estado');
+            if (!el) return;
+            if (rcConsultado) {
+                el.className = 'rc-estado rc-estado--ok';
+                el.textContent = 'Consultado';
+            } else {
+                el.className = 'rc-estado rc-estado--no';
+                el.textContent = 'Sin consultar';
+            }
+        }
+
         function updateObsCount() {
             const ta = document.getElementById('api_observacion');
             const out = document.getElementById('api_obs_count');
@@ -1793,7 +1818,11 @@
             const btn = document.getElementById('bonif_api_submit');
             if (!btn) return;
             let ok, motivo;
-            if (escalonadoOn) {
+            if (!rcConsultado) {
+                // Requisito: no se puede cargar ninguna bonificación sin consultar RC al menos una vez.
+                ok = false;
+                motivo = 'Consulte primero las reglas comerciales del grupo (botón RC).';
+            } else if (escalonadoOn) {
                 ok = tramosValidos().length > 0;
                 motivo = 'Defina el mes de inicio y al menos un tramo válido';
             } else {
@@ -1839,6 +1868,7 @@
                 summary.style.display = 'none';
                 if (single) single.style.display = '';
             }
+            updateRcConsultaEstado();
             refreshBonifSubmitState();
             document.getElementById('bonif-api-modal').style.display = 'block';
             document.getElementById('bonif-api-modal-overlay').style.display = 'block';
@@ -1854,6 +1884,7 @@
             if (bonifApiSending) return; // ya hay una petición en curso -> ignora clics extra
             const grupo = '{{ grupo }}';
             if (!grupo) { lastBonifError = 'No hay grupo familiar.'; setBonifBtn('error'); return; }
+            if (!rcConsultado) { lastBonifError = 'Debe consultar las reglas comerciales (RC) del grupo antes de cargar una bonificación.'; setBonifBtn('error'); return; }
             const observacion = document.getElementById('api_observacion').value || 'alta externa';
 
             // ----- Modo escalonado: varios tramos en una sola petición -----
