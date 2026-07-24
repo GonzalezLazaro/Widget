@@ -399,25 +399,31 @@
         }
         .bonif-rc-btn:hover { background-color: #006b00; }
 
-        /* Modal RC */
-        #rc-modal { max-width: 380px; width: 90%; }
-        #rc-modal .rc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-        #rc-modal .rc-header h3 { margin: 0; font-size: 1.05em; color: #006b00; }
-        .rc-periodo-btns { display: flex; flex-direction: column; gap: 8px; }
-        .rc-periodo-btn { cursor: pointer; border: 1px solid #cfd8cf; background: #f4f8f4; border-radius: 8px; padding: 10px 12px; font-size: 0.9em; font-weight: 700; color: #006b00; text-align: left; transition: border-color .15s ease, background .15s ease; }
-        .rc-periodo-btn:hover:not(:disabled) { border-color: #008000; background: #e9f3e9; }
-        .rc-periodo-btn small { display: block; font-weight: 400; color: #666; font-size: 0.82em; }
-        .rc-periodo-btn:disabled { opacity: 0.55; cursor: default; }
-        .rc-result { text-align: left; font-size: 0.9em; color: #222; }
-        .rc-result .rc-motivo { color: #444; margin: 6px 0; line-height: 1.35; }
-        .rc-result .rc-desc { font-size: 1.4em; font-weight: 800; color: #008000; }
-        .rc-result .rc-extra { margin-top: 8px; border-top: 1px dashed #d5ddd5; padding-top: 8px; }
-        .rc-result .rc-extra-item { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85em; color: #444; }
-        .rc-result .rc-total { margin-top: 8px; font-weight: 800; color: #006b00; }
-        .rc-empty { text-align: center; color: #777; font-size: 0.9em; padding: 10px 0; }
-        .rc-error { text-align: center; color: #c62828; font-size: 0.85em; padding: 8px 0; white-space: pre-line; }
-        .rc-status { text-align: center; color: #666; font-size: 0.9em; padding: 12px 0; }
-        .rc-close-insert { margin-top: 14px; width: 100%; cursor: pointer; border: none; background-color: #008000; color: #fff; border-radius: 8px; padding: 10px; font-weight: 700; font-size: 0.9em; transition: background-color .15s ease; }
+        /* Modal RC (compacto) */
+        #rc-modal { width: 296px; height: auto; max-width: 92vw; padding: 15px 15px 16px; border-radius: 12px; }
+        #rc-modal .rc-header { display: flex; align-items: center; gap: 7px; margin: 0 0 3px; }
+        #rc-modal .rc-header h3 { margin: 0; font-size: 0.95em; font-weight: 800; color: #006b00; letter-spacing: .2px; }
+        .rc-intro { font-size: 0.74em; color: #6b756b; margin: 0 0 11px; }
+        .rc-periodo-btns { display: flex; flex-direction: column; gap: 7px; }
+        .rc-periodo-btn { cursor: pointer; border: 1px solid #d7e2d7; background: #f6faf6; border-radius: 9px; padding: 9px 11px; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; transition: border-color .15s ease, background .15s ease, transform .05s ease; }
+        .rc-periodo-btn:hover:not(:disabled) { border-color: #008000; background: #ecf5ec; }
+        .rc-periodo-btn:active:not(:disabled) { transform: translateY(1px); }
+        .rc-periodo-btn:disabled { opacity: 0.5; cursor: default; }
+        .rc-periodo-btn .rc-per-tag { font-size: 0.66em; font-weight: 800; color: #5a8a5a; text-transform: uppercase; letter-spacing: .6px; }
+        .rc-periodo-btn .rc-per-val { font-size: 0.86em; font-weight: 700; color: #006b00; font-variant-numeric: tabular-nums; }
+        .rc-result { text-align: left; font-size: 0.85em; color: #222; }
+        .rc-result .rc-title { margin: 0 0 2px; font-size: 1em; font-weight: 800; color: #006b00; line-height: 1.2; }
+        .rc-result .rc-per { font-size: 0.72em; color: #9aa39a; font-variant-numeric: tabular-nums; }
+        .rc-result .rc-motivo { color: #4a524a; margin: 7px 0; line-height: 1.35; font-size: 0.92em; }
+        .rc-result .rc-desc { font-size: 1.55em; font-weight: 800; color: #008000; line-height: 1; }
+        .rc-result .rc-desc small { font-size: 0.42em; font-weight: 700; color: #9aa39a; margin-left: 4px; }
+        .rc-result .rc-extra { margin-top: 9px; border-top: 1px dashed #dbe3db; padding-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+        .rc-result .rc-extra-item { display: flex; justify-content: space-between; gap: 8px; font-size: 0.82em; color: #4a524a; }
+        .rc-result .rc-total { margin-top: 8px; font-weight: 800; color: #006b00; font-size: 0.9em; }
+        .rc-empty { text-align: center; color: #7a827a; font-size: 0.86em; padding: 8px 4px; line-height: 1.4; }
+        .rc-error { text-align: center; color: #c62828; font-size: 0.82em; padding: 8px 4px; white-space: pre-line; }
+        .rc-status { text-align: center; color: #6b756b; font-size: 0.86em; padding: 14px 0; }
+        .rc-close-insert { margin-top: 13px; width: 100%; cursor: pointer; border: none; background-color: #008000; color: #fff; border-radius: 9px; padding: 9px; font-weight: 700; font-size: 0.86em; transition: background-color .15s ease; }
         .rc-close-insert:hover { background-color: #006b00; }
 
         /* Dos inputs de bonificación (Vigente + Manual) + botón, en una sola fila */
@@ -1338,7 +1344,7 @@
 
             <!-- Paso 1: elegir período -->
             <div id="rc-step-periodo">
-                <p style="font-size:0.85em;color:#555;margin:0 0 10px;">Evaluar bonificación adicional para el período:</p>
+                <p class="rc-intro">Bonificación adicional del grupo. Elegí el período:</p>
                 <div class="rc-periodo-btns">
                     <button type="button" class="rc-periodo-btn" id="rc-btn-actual" onclick="evaluarRc('actual')"></button>
                     <button type="button" class="rc-periodo-btn" id="rc-btn-proximo" onclick="evaluarRc('proximo')"></button>
@@ -1370,12 +1376,17 @@
             return { actual: actual, proximo: proximo };
         }
 
-        function rcFmtPeriodo(yyyymm) {
-            // "202607" -> "julio 2026"
+        function rcMesNombre(yyyymm) {
             var meses = (typeof BONIF_MESES_FULL !== 'undefined') ? BONIF_MESES_FULL
                 : ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
             var m = parseInt(String(yyyymm).slice(4, 6), 10) - 1;
-            return (meses[m] || '') + ' ' + String(yyyymm).slice(0, 4);
+            var n = meses[m] || '';
+            return n ? (n.charAt(0).toUpperCase() + n.slice(1)) : '';
+        }
+
+        function rcFmtPeriodo(yyyymm) {
+            // "202607" -> "202607 (Julio)"
+            return String(yyyymm) + ' (' + rcMesNombre(yyyymm) + ')';
         }
 
         function openRcModal() {
@@ -1387,8 +1398,8 @@
             var bA = document.getElementById('rc-btn-actual');
             var bP = document.getElementById('rc-btn-proximo');
             bA.disabled = false; bP.disabled = false;
-            bA.innerHTML = 'Período actual <small>' + rcFmtPeriodo(rcPeriodos.actual) + ' (' + rcPeriodos.actual + ')</small>';
-            bP.innerHTML = 'Período próximo <small>' + rcFmtPeriodo(rcPeriodos.proximo) + ' (' + rcPeriodos.proximo + ')</small>';
+            bA.innerHTML = '<span class="rc-per-tag">Actual</span><span class="rc-per-val">' + rcFmtPeriodo(rcPeriodos.actual) + '</span>';
+            bP.innerHTML = '<span class="rc-per-tag">Próximo</span><span class="rc-per-val">' + rcFmtPeriodo(rcPeriodos.proximo) + '</span>';
             document.getElementById('rc-modal').style.display = 'block';
             document.getElementById('rc-modal-overlay').style.display = 'block';
         }
@@ -1463,18 +1474,18 @@
 
         function rcRenderResult(calc, periodo) {
             var p = calc.primary;
+            var acumula = calc.reglas.length > 1;
             var html = '<div class="rc-result">';
-            html += '<h3 style="margin:0 0 4px;color:#006b00;font-size:1.05em;">' + rcEsc(p.nombre) + '</h3>';
-            html += '<div style="font-size:0.78em;color:#888;">' + rcFmtPeriodo(periodo) + '</div>';
+            html += '<div class="rc-per">' + rcFmtPeriodo(periodo) + '</div>';
+            html += '<h3 class="rc-title">' + rcEsc(p.nombre) + '</h3>';
             html += '<p class="rc-motivo">' + rcEsc(p.motivo) + '</p>';
-            html += '<div class="rc-desc">' + p.descuento + '%</div>';
-            if (calc.reglas.length > 1) {
+            html += '<div class="rc-desc">' + calc.total + '%<small>' + (acumula ? 'total acumulado' : 'descuento') + '</small></div>';
+            if (acumula) {
                 html += '<div class="rc-extra">';
                 calc.reglas.forEach(function (r) {
                     html += '<div class="rc-extra-item"><span>' + rcEsc(r.nombre) + '</span><span>' + r.descuento + '%</span></div>';
                 });
                 html += '</div>';
-                html += '<div class="rc-total">Total acumulado: ' + calc.total + '% &rarr; se insertará ' + Math.abs(calc.total) + '</div>';
             }
             html += '</div>';
             html += rcCerrarBtn('Cerrar e insertar');
