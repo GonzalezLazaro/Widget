@@ -467,6 +467,7 @@
         .tramo-del { flex: 0 0 auto; border: none; background: transparent; color: #c62828; cursor: pointer; font-size: 1em; line-height: 1; padding: 2px 3px; }
         .tramo-del:hover { color: #8e1b1b; }
         .tramos-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+        .tramos-actions-right { display: inline-flex; align-items: center; gap: 4px; }
         .bonif-mini-btn { border: 1px dashed #008000; background: #eef6ee; color: #006b00; border-radius: 6px; padding: 3px 10px; font-size: 0.72em; font-weight: 700; cursor: pointer; }
         #resultados-cotizacion .tramo-result-head { background-color: #eef6ee !important; color: #006b00 !important; font-size: 0.72em; font-weight: 700; }
         .bonif-tramos-card { border: 1px solid #d6e4d6; border-radius: 10px; overflow: hidden; }
@@ -1180,7 +1181,7 @@
                                                 <div id="tramos-list"></div>
                                                 <div class="tramos-actions">
                                                     <button type="button" class="bonif-mini-btn" onclick="addTramo()">+ tramo</button>
-                                                    <button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                    <span class="tramos-actions-right"><button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button></span>
                                                 </div>
                                             </div>
                                         </th>
@@ -1217,7 +1218,7 @@
                                                 <div id="tramos-list"></div>
                                                 <div class="tramos-actions">
                                                     <button type="button" class="bonif-mini-btn" onclick="addTramo()">+ tramo</button>
-                                                    <button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                    <span class="tramos-actions-right"><button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button></span>
                                                 </div>
                                             </div>
                                         </th>
@@ -1258,7 +1259,7 @@
                                                 <div id="tramos-list"></div>
                                                 <div class="tramos-actions">
                                                     <button type="button" class="bonif-mini-btn" onclick="addTramo()">+ tramo</button>
-                                                    <button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+                                                    <span class="tramos-actions-right"><button type="button" class="bonif-rc-btn" title="Consultar reglas comerciales" aria-label="Evaluar reglas comerciales del grupo" onclick="openRcModal()">RC</button><button type="button" class="bonif-api-btn tramos-gecros-btn" title="Enviar tramos a Gecros" aria-label="Cargar tramos en sistema externo" onclick="openBonifApiModal()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button></span>
                                                 </div>
                                             </div>
                                         </th>
@@ -1851,13 +1852,27 @@
                 const fmtMY = function (s) { s = '' + s; return (BONIF_MESES[parseInt(s.slice(4, 6), 10) - 1] || '') + ' ' + s.slice(0, 4); };
                 const totMeses = periodos.reduce(function (a, p) { const d = parseInt(p.peri_desde.slice(0, 4), 10) * 12 + parseInt(p.peri_desde.slice(4, 6), 10); const h = parseInt(p.peri_hasta.slice(0, 4), 10) * 12 + parseInt(p.peri_hasta.slice(4, 6), 10); return a + (h - d + 1); }, 0);
                 const rango = periodos.length ? (fmtMY(periodos[0].peri_desde) + ' – ' + fmtMY(periodos[periodos.length - 1].peri_hasta)) : '';
-                summary.innerHTML = periodos.length
+                const tramosHtml = periodos.length
                     ? '<div class="bonif-tramos-card">' +
                           '<div class="bonif-tramos-head"><span>Tramos a cargar</span><span class="bonif-tramos-count">' + periodos.length + '</span></div>' +
                           periodos.map(function (p, i) { return '<div class="bonif-tramo-item"><span class="bonif-tramo-idx">' + (i + 1) + '</span><span class="bonif-tramo-per">' + p.label + '</span><span class="bonif-tramo-pct">' + p.porcentaje + '%</span></div>'; }).join('') +
                           '<div class="bonif-tramos-foot">' + rango + ' · ' + totMeses + ' ' + (totMeses === 1 ? 'mes' : 'meses') + '</div>' +
                       '</div>'
                     : '<div class="bonif-api-status err show" style="display:flex;">Defina el mes de inicio y al menos un tramo válido.</div>';
+                // Circuito de reglas comerciales: estado + inserts RC que se agregan sobre el rango de tramos.
+                let rcHtml;
+                if (!rcConsultado) {
+                    rcHtml = '<div class="bonif-api-status err show" style="display:flex;margin-top:8px;">Consulte las reglas comerciales (botón RC) antes de enviar.</div>';
+                } else if (rcReglas.length && periodos.length) {
+                    rcHtml = '<div class="bonif-tramos-card" style="margin-top:8px;">' +
+                          '<div class="bonif-tramos-head"><span>Reglas comerciales</span><span class="rc-estado rc-estado--ok">Consultado</span></div>' +
+                          rcReglas.map(function (r) { return '<div class="bonif-tramo-item"><span class="bonif-tramo-per">' + rcEsc(r.nombre) + '</span><span class="bonif-tramo-pct">' + Math.abs(r.descuento) + '%</span></div>'; }).join('') +
+                          '<div class="bonif-tramos-foot">' + (rango || '—') + '</div>' +
+                      '</div>';
+                } else {
+                    rcHtml = '<div style="margin-top:8px;display:flex;justify-content:center;align-items:center;gap:6px;font-size:0.78em;color:#5a8a5a;"><span class="rc-estado rc-estado--ok">Consultado</span> Sin bonificación adicional.</div>';
+                }
+                summary.innerHTML = tramosHtml + rcHtml;
                 summary.style.display = 'block';
                 if (single) single.style.display = 'none';
             } else {
@@ -1880,6 +1895,18 @@
             document.getElementById('bonif-api-modal-overlay').style.display = 'none';
         }
 
+        // Genera un insert por regla comercial aplicada (cada uno con su rg_id y descuento)
+        // sobre el período [desde, hasta]. Prefija la observación con el nombre + id de la regla.
+        function rcInsertItems(desde, hasta, observacion) {
+            var arr = [];
+            rcReglas.forEach(function (r) {
+                if (r.id == null || !r.descuento) return;
+                var obsRc = '[' + (r.nombre || 'Regla comercial') + ' (regla comercial ' + r.id + ')] - ' + observacion;
+                arr.push({ peri_desde: desde, peri_hasta: hasta, porcentaje: Math.abs(r.descuento), rg_id: r.id, observacion: obsRc });
+            });
+            return arr;
+        }
+
         function enviarBonifApi() {
             if (bonifApiSending) return; // ya hay una petición en curso -> ignora clics extra
             const grupo = '{{ grupo }}';
@@ -1891,21 +1918,21 @@
             if (escalonadoOn) {
                 const periodos = tramosValidos();
                 if (!periodos.length) { lastBonifError = 'Defina el mes de inicio y al menos un tramo válido.'; setBonifBtn('error'); return; }
+                // Tramos manuales + inserts de reglas comerciales sobre el rango completo de los tramos.
+                const items = periodos.map(function (p) { return { peri_desde: p.peri_desde, peri_hasta: p.peri_hasta, porcentaje: p.porcentaje }; });
+                items.push.apply(items, rcInsertItems(periodos[0].peri_desde, periodos[periodos.length - 1].peri_hasta, observacion));
                 bonifApiSending = true;
                 setBonifBtn('loading');
                 fetch(`/widget/api/cargar_bonificacion/${grupo}/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-                    body: JSON.stringify({
-                        tramos: periodos.map(function (p) { return { peri_desde: p.peri_desde, peri_hasta: p.peri_hasta, porcentaje: p.porcentaje }; }),
-                        observacion: observacion
-                    })
+                    body: JSON.stringify({ tramos: items, observacion: observacion })
                 })
                 .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d }; }); })
                 .then(function (res) {
                     bonifApiSending = false;
                     const d = res.d || {};
-                    const total = (d.resultados ? d.resultados.length : periodos.length);
+                    const total = (d.resultados ? d.resultados.length : items.length);
                     if (res.ok && d.fallidos === 0) {
                         setBonifBtn('ok', (d.cargados || total) + ' cargados');
                         setTimeout(closeBonifApiModal, 1600);
@@ -1944,13 +1971,8 @@
                     setBonifBtn('error');
                     return;
                 }
-                // Un insert por regla aplicada, cada uno con su rg_id y su descuento.
-                // Observación prefijada con el nombre + id: "[Nombre (regla comercial 6038)] - <obs usuario>"
-                rcReglas.forEach(function (r) {
-                    if (r.id == null || !r.descuento) return;
-                    const obsRc = '[' + (r.nombre || 'Regla comercial') + ' (regla comercial ' + r.id + ')] - ' + observacion;
-                    items.push({ peri_desde: desde, peri_hasta: hasta, porcentaje: Math.abs(r.descuento), rg_id: r.id, observacion: obsRc });
-                });
+                // Un insert por regla aplicada, mismo período que el porcentaje manual.
+                items.push.apply(items, rcInsertItems(desde, hasta, observacion));
             }
             if (!items.length) { lastBonifError = 'Ingrese un porcentaje mayor a 0.'; setBonifBtn('error'); return; }
 
