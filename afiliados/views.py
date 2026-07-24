@@ -855,7 +855,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 #print(resultados_combinados)
 
                 # Renderiza la plantilla con ambos conjuntos de datos
-                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo})
+                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo, "dni_titular": dni_titular})
             
             else:
                 return render(request, self.template_name, {'error': 'No se encontraron datos para el DNI proporcionado.'}, status=404)
@@ -1876,4 +1876,44 @@ def cargar_bonificacion_externa(request, grupo):
         return JsonResponse({"error": f"Error de conexión con la API: {e}"}, status=500)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
-    
+
+
+@requiere_permiso_json("accion.evaluar_bonificacion")
+@csrf_exempt
+def evaluar_bonificacion_externa(request):
+    """
+    Evalúa (solo lectura) si el grupo familiar del titular tiene bonificaciones
+    adicionales según sus atributos en Gecros. Proxy hacia
+    https://bonificaciones.nobis.com.ar/api/v1/grupos/evaluar para mantener el
+    BONIF_API_TOKEN fuera del front y evitar CORS. El cálculo del descuento a
+    aplicar lo hace el front con la respuesta cruda.
+    """
+    if request.method != "POST":
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        body = json.loads(request.body.decode("utf-8"))
+        dni = body.get("dni")
+        periodo = str(body.get("periodo", "")).strip()
+        if not dni or not periodo:
+            return JsonResponse({"error": "Debe indicar dni y periodo"}, status=400)
+
+        api_token = os.environ.get("BONIF_API_TOKEN", "")
+        headers = {"Content-Type": "application/json", "X-API-Token": api_token}
+        api_url = "https://bonificaciones.nobis.com.ar/api/v1/grupos/evaluar"
+        payload = {"dni": int(dni), "periodo": periodo, "evaluar_gecros": True}
+
+        r = requests.post(api_url, json=payload, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
+        ok = r.status_code in (200, 201)
+        registrar(request, action="evaluar_bonificacion", recurso="accion.evaluar_bonificacion",
+                  target_type="dni", target_id=str(dni), response_status=r.status_code, success=ok,
+                  payload_summary={"periodo": periodo}, error_detail="" if ok else r.text)
+        if not ok:
+            return JsonResponse({"error": "Error al evaluar", "detalle": r.text}, status=400)
+        return JsonResponse(r.json(), safe=False)  # respuesta cruda; el front calcula
+
+    except requests.exceptions.RequestException as e:
+        return JsonResponse({"error": f"Error de conexión con la API: {e}"}, status=500)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+

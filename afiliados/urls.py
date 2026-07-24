@@ -2,7 +2,7 @@ from django.urls import path
 from .views import BuscarAfiliadoView, BuscarRetencionView, MesaDeEntradaView
 from .views import guardar_expediente, archivo_expediente, cotizar_actual, descargar_adjunto, previsualizar_adjunto, buscar_beneficiario, obtener_destinos, crear_remito
 from .views import obtener_generadores_api, obtener_generadores
-from .views import cargar_bonificacion_externa
+from .views import cargar_bonificacion_externa, evaluar_bonificacion_externa
 app_name = 'afiliados'
 
 urlpatterns = [
@@ -27,5 +27,6 @@ urlpatterns = [
     path('obtener_generadores/<int:sector_origen>/', obtener_generadores_api, name='obtener_generadores'),
 
     path('api/cargar_bonificacion/<int:grupo>/', cargar_bonificacion_externa, name='cargar_bonificacion_externa'),
+    path('api/evaluar_bonificacion/', evaluar_bonificacion_externa, name='evaluar_bonificacion_externa'),
 
 ]

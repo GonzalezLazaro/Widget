@@ -16,6 +16,7 @@ RECURSOS = OrderedDict([
     ("vista.mesa",                ("Ver pantalla Mesa de Entrada",    "vista",  "Vistas")),
     ("accion.cotizar",            ("Cotizar",                         "accion", "Retención")),
     ("accion.enviar_bonificacion",("Enviar bonificación a Gecros",    "accion", "Retención")),
+    ("accion.evaluar_bonificacion",("Evaluar reglas comerciales (RC)", "accion", "Retención")),
     ("accion.crear_expediente",   ("Crear expediente",                "accion", "Mesa de Entrada")),
     ("accion.subir_archivo",      ("Subir archivo a expediente",      "accion", "Mesa de Entrada")),
     ("accion.crear_remito",       ("Crear remito",                    "accion", "Mesa de Entrada")),
