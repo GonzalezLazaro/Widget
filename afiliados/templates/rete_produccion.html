@@ -411,15 +411,17 @@
         .rc-periodo-btn:disabled { opacity: 0.5; cursor: default; }
         .rc-periodo-btn .rc-per-tag { font-size: 0.66em; font-weight: 800; color: #5a8a5a; text-transform: uppercase; letter-spacing: .6px; }
         .rc-periodo-btn .rc-per-val { font-size: 0.86em; font-weight: 700; color: #006b00; font-variant-numeric: tabular-nums; }
-        .rc-result { text-align: left; font-size: 0.85em; color: #222; }
-        .rc-result .rc-title { margin: 0 0 2px; font-size: 1em; font-weight: 800; color: #006b00; line-height: 1.2; }
-        .rc-result .rc-per { font-size: 0.72em; color: #9aa39a; font-variant-numeric: tabular-nums; }
-        .rc-result .rc-motivo { color: #4a524a; margin: 7px 0; line-height: 1.35; font-size: 0.92em; }
-        .rc-result .rc-desc { font-size: 1.55em; font-weight: 800; color: #008000; line-height: 1; }
-        .rc-result .rc-desc small { font-size: 0.42em; font-weight: 700; color: #9aa39a; margin-left: 4px; }
-        .rc-result .rc-extra { margin-top: 9px; border-top: 1px dashed #dbe3db; padding-top: 8px; display: flex; flex-direction: column; gap: 3px; }
-        .rc-result .rc-extra-item { display: flex; justify-content: space-between; gap: 8px; font-size: 0.82em; color: #4a524a; }
-        .rc-result .rc-total { margin-top: 8px; font-weight: 800; color: #006b00; font-size: 0.9em; }
+        .rc-result { display: flex; flex-direction: column; gap: 8px; text-align: left; font-size: 0.85em; color: #222; }
+        .rc-result .rc-per { align-self: flex-start; background: #eef4ee; color: #5a8a5a; font-size: 0.68em; font-weight: 700; letter-spacing: .3px; padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+        .rc-result .rc-title { margin: 0; padding: 6px 10px; background: #e7f2e7; border-left: 3px solid #008000; border-radius: 0 7px 7px 0; font-size: 0.98em; font-weight: 800; color: #006b00; line-height: 1.2; }
+        .rc-result .rc-motivo { margin: 0; padding: 8px 10px; background: #f5f7f5; border: 1px solid #e6ece6; border-radius: 8px; color: #4a524a; line-height: 1.4; font-size: 0.9em; }
+        .rc-result .rc-extra { display: flex; flex-direction: column; gap: 4px; }
+        .rc-result .rc-extra-item { display: flex; justify-content: space-between; gap: 8px; padding: 5px 9px; background: #f5f7f5; border-radius: 6px; font-size: 0.82em; color: #4a524a; }
+        .rc-result .rc-extra-item span:last-child { font-weight: 700; color: #006b00; font-variant-numeric: tabular-nums; }
+        .rc-desc-wrap { display: flex; justify-content: flex-end; margin-top: 2px; }
+        .rc-desc { display: inline-flex; align-items: baseline; gap: 7px; background: linear-gradient(135deg, #008000, #04920a); color: #fff; padding: 7px 15px; border-radius: 11px; box-shadow: 0 3px 8px rgba(0,128,0,0.22); }
+        .rc-desc .rc-num { font-size: 1.7em; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+        .rc-desc small { font-size: 0.62em; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: rgba(255,255,255,0.85); }
         .rc-empty { text-align: center; color: #7a827a; font-size: 0.86em; padding: 8px 4px; line-height: 1.4; }
         .rc-error { text-align: center; color: #c62828; font-size: 0.82em; padding: 8px 4px; white-space: pre-line; }
         .rc-status { text-align: center; color: #6b756b; font-size: 0.86em; padding: 14px 0; }
@@ -1476,10 +1478,9 @@
             var p = calc.primary;
             var acumula = calc.reglas.length > 1;
             var html = '<div class="rc-result">';
-            html += '<div class="rc-per">' + rcFmtPeriodo(periodo) + '</div>';
+            html += '<span class="rc-per">' + rcFmtPeriodo(periodo) + '</span>';
             html += '<h3 class="rc-title">' + rcEsc(p.nombre) + '</h3>';
             html += '<p class="rc-motivo">' + rcEsc(p.motivo) + '</p>';
-            html += '<div class="rc-desc">' + calc.total + '%<small>' + (acumula ? 'total acumulado' : 'descuento') + '</small></div>';
             if (acumula) {
                 html += '<div class="rc-extra">';
                 calc.reglas.forEach(function (r) {
@@ -1487,6 +1488,7 @@
                 });
                 html += '</div>';
             }
+            html += '<div class="rc-desc-wrap"><div class="rc-desc"><span class="rc-num">' + calc.total + '%</span><small>' + (acumula ? 'total acumulado' : 'descuento') + '</small></div></div>';
             html += '</div>';
             html += rcCerrarBtn('Cerrar e insertar');
             return html;
