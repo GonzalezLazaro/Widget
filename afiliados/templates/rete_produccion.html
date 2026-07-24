@@ -317,6 +317,11 @@
         .rc-estado--ok { background: #e7f2e7; color: #2f7a2f; }
         .rc-estado--ok::before { background: #2f9a2f; }
 
+        /* Aviso: exige consultar reglas comerciales antes de enviar (modo escalonado) */
+        .rc-warn { display: flex; align-items: center; gap: 9px; margin-top: 8px; padding: 10px 12px; background: #fdf3e6; border: 1px solid #f2ddbb; border-left: 3px solid #e0972a; border-radius: 9px; color: #8a5a12; font-size: 0.8em; line-height: 1.35; text-align: left; }
+        .rc-warn svg { flex: 0 0 auto; color: #e0972a; }
+        .rc-warn strong { font-weight: 800; }
+
         /* Botón Enviar (muestra el resultado dentro del propio botón: cargando / ✔ / ✕) */
         .bonif-api-submit {
             display: flex;
@@ -1862,7 +1867,10 @@
                 // Circuito de reglas comerciales: estado + inserts RC que se agregan sobre el rango de tramos.
                 let rcHtml;
                 if (!rcConsultado) {
-                    rcHtml = '<div class="bonif-api-status err show" style="display:flex;margin-top:8px;">Consulte las reglas comerciales (botón RC) antes de enviar.</div>';
+                    rcHtml = '<div class="rc-warn">' +
+                          '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>' +
+                          '<span>Consultá las reglas comerciales del grupo con el botón <strong>RC</strong> antes de enviar.</span>' +
+                      '</div>';
                 } else if (rcReglas.length && periodos.length) {
                     rcHtml = '<div class="bonif-tramos-card" style="margin-top:8px;">' +
                           '<div class="bonif-tramos-head"><span>Reglas comerciales</span><span class="rc-estado rc-estado--ok">Consultado</span></div>' +
