@@ -1828,11 +1828,12 @@ def cargar_bonificacion_externa(request, grupo):
                 "usuario": usuario_api,
             }
             # Insert de regla comercial: lleva rg_id (id de la regla) y NO 'grupo'.
-            # Insert manual: lleva 'grupo' (grupo RBAC que concede) y NO rg_id.
+            # Insert manual (porcentaje "Nuevo" / tramos): lleva 'grupo' + reeval=True y NO rg_id.
             if rg_id is not None:
                 payload["rg_id"] = rg_id
             else:
                 payload["grupo"] = grupo_api
+                payload["reeval"] = True
             r = requests.post(api_url, json=payload, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
             ok = r.status_code in (200, 201)
             registrar(request, action="enviar_bonificacion", recurso="accion.enviar_bonificacion", target_type="grupo",
