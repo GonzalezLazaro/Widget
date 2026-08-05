@@ -93,9 +93,11 @@ def actualizar_preexistencias():
 
             print("Datos guardados en 'preexistencias.json'")
         else:
-            raise Exception("No hay datos de preexistencias.")
+            # 200 con cuerpo vacío: se conserva el archivo local en lugar de pisarlo.
+            print("No hay datos de preexistencias. Se conserva el archivo local.")
+            return None
 
-    except requests.exceptions.RequestException as e:
+    except (requests.exceptions.RequestException, ValueError, OSError) as e:
         print(f"Error al renovar preexistencias: {e}")
         return None
 

@@ -456,20 +456,26 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 response = requests.get(url_api, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
                 response.raise_for_status()
                 response_json = response.json()
-                clave_dinamica_actual = next(iter(response_json.keys()))
 
-                # Si no hay clave almacenada o si cambió, actualizar el archivo
-                if clave_dinamica_cache != clave_dinamica_actual:
-                    print("La clave dinámica ha cambiado. Actualizando archivo...")
-                    actualizar_preexistencias()
-                    cache.set('clave_dinamica_preex', clave_dinamica_actual, timeout=30 * 24 * 3600)  # 30 días
+                # La API puede responder 200 con cuerpo `null` o `{}`. En ese caso
+                # no se toca el archivo local ni se marca la verificación diaria:
+                # se sigue sirviendo la última copia buena y se reintenta después.
+                if not response_json:
+                    print("La API de preexistencias no devolvió datos. Se usa el archivo local.")
+                else:
+                    clave_dinamica_actual = next(iter(response_json.keys()))
 
-                # Registrar que se realizó la verificación diaria
-                cache.set('verificacion_diaria_preex', True, timeout=24 * 3600)  # 24 horas
+                    # Si no hay clave almacenada o si cambió, actualizar el archivo
+                    if clave_dinamica_cache != clave_dinamica_actual:
+                        print("La clave dinámica ha cambiado. Actualizando archivo...")
+                        actualizar_preexistencias()
+                        cache.set('clave_dinamica_preex', clave_dinamica_actual, timeout=30 * 24 * 3600)  # 30 días
 
-            except requests.exceptions.RequestException as e:
+                    # Registrar que se realizó la verificación diaria
+                    cache.set('verificacion_diaria_preex', True, timeout=24 * 3600)  # 24 horas
+
+            except (requests.exceptions.RequestException, ValueError) as e:
                 print(f"Error al consultar la clave dinámica: {e}")
-                return None
 
         # Ruta absoluta al archivo preexistencias.json
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
