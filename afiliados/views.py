@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 import json
 from pandas import json_normalize
-from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, buscar_preexistencias, obtener_expedientes_grupo_familiar
+from .utils import actualizar_token_wise, actualizar_token_gecros, condicion_grupal, parsear_coberturas, obtener_expedientes_grupo_familiar
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -437,64 +437,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
  
         return token
 
-    def obtener_preex(self):
-        # Endpoint y configuración
-        url_api = "https://cotizador.nobis.com.ar/api/preex"
-        headers = {
-            "Content-Type": "application/json",
-            'Authorization': 'Bearer 496ae7b9-0787-482e-bbe2-235279237940'
-        }
-
-        # Obtener la clave dinámica almacenada en caché
-        clave_dinamica_cache = cache.get('clave_dinamica_preex')
-        verificacion_diaria = cache.get('verificacion_diaria_preex')
-
-        # Si no se realizó la verificación diaria
-        if not verificacion_diaria:
-            try:
-                # Obtener la clave dinámica actual desde la API
-                response = requests.get(url_api, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
-                response.raise_for_status()
-                response_json = response.json()
-
-                # La API puede responder 200 con cuerpo `null` o `{}`. En ese caso
-                # no se toca el archivo local ni se marca la verificación diaria:
-                # se sigue sirviendo la última copia buena y se reintenta después.
-                if not response_json:
-                    print("La API de preexistencias no devolvió datos. Se usa el archivo local.")
-                else:
-                    clave_dinamica_actual = next(iter(response_json.keys()))
-
-                    # Si no hay clave almacenada o si cambió, actualizar el archivo
-                    if clave_dinamica_cache != clave_dinamica_actual:
-                        print("La clave dinámica ha cambiado. Actualizando archivo...")
-                        actualizar_preexistencias()
-                        cache.set('clave_dinamica_preex', clave_dinamica_actual, timeout=30 * 24 * 3600)  # 30 días
-
-                    # Registrar que se realizó la verificación diaria
-                    cache.set('verificacion_diaria_preex', True, timeout=24 * 3600)  # 24 horas
-
-            except (requests.exceptions.RequestException, ValueError) as e:
-                print(f"Error al consultar la clave dinámica: {e}")
-
-        # Ruta absoluta al archivo preexistencias.json
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_path = os.path.join(base_dir, 'home', 'static', 'preexistencias.json')
-
-        # Leer y devolver el contenido del archivo actualizad
-        try:
-           with open(json_path, 'r', encoding='utf-8') as archivo:
-              return json.load(archivo)
-        except FileNotFoundError:
-           print("Archivo local no encontrado. Ejecutando actualización...")
-           actualizar_preexistencias()
-           with open(json_path, 'r', encoding='utf-8') as archivo:
-              return json.load(archivo)
-
- 
     def get(self, request, dni=None, *args, **kwargs):
-
-        self.obtener_preex() # Verificar lista de patologias
 
         # Validación de entrada de DNI
         if not dni:
@@ -674,7 +617,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                         "Parentesco": afiliado.get("parentesco"),
                         "Estado": afiliado.get("estadoBenef"),
                         "Deuda": total_deuda,
-                        "Patologias": []
+                        "Coberturas": []
                     }
 
                     if 'con' in afiliado_info["Estado"].lower():
@@ -749,29 +692,13 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
 
                             afiliado_info['Fecha_alta'] = fecha_formateada
 
+                            # Coberturas especiales: se conserva el ID de Gecros tal cual.
+                            # El valor monetario lo resuelve la nueva API.
                             patologia = data_p[0].get('cobertura_especial')
                             patologias_id = data_p[0].get('id_cobertura_especial')
-                            
-                            if patologia != None:
-                                #print(f"Patologia: {patologia}")
-                                busqueda = buscar_cobertura(patologia)
-                                #print(f"Primera busqueda: {busqueda}")
-                                if busqueda == []:
-                                    #print(f"PB = [] -> Iniciando segunda busqueda por ID: {patologias_id}")
-                                    busqueda = buscar_preexistencias(patologias_id)
-                                    #print(f"Resultado de busqueda de preexistencias: {busqueda}")
-                                
-                                if busqueda == "No se encontraron coincidencias.":
-                                    afiliado_info['Patologias'] = []
-                                    afiliado_info['Cobertura_especial'] = patologia
-                                    #print("No se encontraron coincidencias de homologación. - Cobertura especial:", patologia)
-                                else:
-                                    afiliado_info['Patologias'] = busqueda
-                                    afiliado_info['Cobertura_especial'] = patologia
-                                    #print(f"Encontrado: {busqueda} - Cob: {patologia}")
-                            else:
-                                afiliado_info['Cobertura_especial'] = 'Sin cobertura especial'
-                                #print("SIN COBERTURA ESPECIAL")
+
+                            afiliado_info['Coberturas'] = parsear_coberturas(patologias_id, patologia)
+                            afiliado_info['Cobertura_especial'] = patologia or 'Sin cobertura especial'
                         else:
                             print("Error. Fecha de alta no encontrada.")
 

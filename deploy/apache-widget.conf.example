@@ -64,7 +64,7 @@
   # Los estáticos nuevos (JS de auth, admin de Django, imágenes del feature) se
   # sirven de staticfiles/ (salida de `dbtools.py collectstatic`). El Alias
   # general se queda en home/static porque la app REESCRIBE en runtime
-  # origenes/preexistencias/proveedores.json y los templates los consultan vía
+  # origenes/proveedores/generadores.json y los templates los consultan vía
   # /static/: apuntar todo /static a staticfiles congelaría esos JSON.
   Alias /static/afiliados /home/widget/staticfiles/afiliados
   Alias /static/admin /home/widget/staticfiles/admin

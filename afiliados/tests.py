@@ -1,39 +1,30 @@
-from unittest.mock import patch, Mock
+from django.test import SimpleTestCase
 
-from django.core.cache import cache
-from django.test import TestCase
-
-from afiliados.views import BuscarRetencionView
+from afiliados.utils import parsear_coberturas
 
 
-class ObtenerPreexTests(TestCase):
-    """La API de preexistencias puede responder 200 con cuerpo `null`."""
+class ParsearCoberturasTests(SimpleTestCase):
+    """Los campos de Gecros llegan como strings separados por coma."""
 
-    def setUp(self):
-        cache.delete('verificacion_diaria_preex')
-        cache.delete('clave_dinamica_preex')
+    def test_pareo_posicional(self):
+        self.assertEqual(
+            parsear_coberturas("12,45", "HTA, DIABETES"),
+            [{"id": 12, "nombre": "HTA"}, {"id": 45, "nombre": "DIABETES"}],
+        )
 
-    def _mock_response(self, payload):
-        respuesta = Mock()
-        respuesta.raise_for_status.return_value = None
-        respuesta.json.return_value = payload
-        return respuesta
+    def test_longitudes_distintas_cae_a_ids(self):
+        """Sin correspondencia 1 a 1 no se puede afirmar qué nombre va con qué ID."""
+        resultado = parsear_coberturas("12,45", "HTA")
 
-    def test_respuesta_null_no_rompe_y_usa_archivo_local(self):
-        with patch('afiliados.views.requests.get', return_value=self._mock_response(None)):
-            datos = BuscarRetencionView().obtener_preex()
+        self.assertEqual([c["nombre"] for c in resultado], ["ID 12", "ID 45"])
+        self.assertEqual([c["id"] for c in resultado], [12, 45])
 
-        self.assertTrue(datos, "Debe devolver las preexistencias del archivo local")
+    def test_sin_nombres_usa_los_ids(self):
+        self.assertEqual(
+            parsear_coberturas("7", None),
+            [{"id": 7, "nombre": "ID 7"}],
+        )
 
-    def test_respuesta_vacia_no_rompe(self):
-        with patch('afiliados.views.requests.get', return_value=self._mock_response({})):
-            datos = BuscarRetencionView().obtener_preex()
-
-        self.assertTrue(datos)
-
-    def test_respuesta_null_no_marca_verificacion_diaria(self):
-        """Si la API falló, hay que reintentar en la próxima request, no esperar 24 h."""
-        with patch('afiliados.views.requests.get', return_value=self._mock_response(None)):
-            BuscarRetencionView().obtener_preex()
-
-        self.assertIsNone(cache.get('verificacion_diaria_preex'))
+    def test_sin_ids_devuelve_vacio(self):
+        for entrada in (None, "", "   ", "abc", ","):
+            self.assertEqual(parsear_coberturas(entrada, "HTA"), [])

@@ -4,15 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
-    <!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
     {% load static %}
     <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -592,20 +583,57 @@
             margin-bottom: 5px;
         }
 
-        .select2-container .select2-selection--multiple {
-            flex-wrap: wrap; /* Permitir que las etiquetas bajen a la siguiente línea */
-            gap: 2px; /* Espacio entre las etiquetas */
+        /* Coberturas especiales: chips read-only con el ID de Gecros. */
+        .cob-lista {
             max-height: 30px; /* Altura máxima para habilitar scroll */
             overflow-y: auto; /* Scroll vertical */
             overflow-x: hidden; /* Evitar desbordamiento horizontal */
             text-align: left;
         }
 
-        .select2-container .select2-selection__choice {
-            white-space: nowrap; /* Evitar que el texto dentro de las etiquetas se corte */
-            overflow: hidden;
-            text-overflow: ellipsis; /* Mostrar puntos suspensivos si el texto es muy largo */
+        .cob-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px; /* Espacio entre el texto y la cruz */
             max-width: 50%; /* Asegurar que las etiquetas no desborden */
+            margin: 1px;
+            padding: 1px 4px;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            background: #e4e4e4;
+            font-size: 11px;
+            vertical-align: middle;
+            overflow: hidden;
+        }
+
+        .cob-chip-txt {
+            white-space: nowrap; /* Evitar que el texto se corte */
+            overflow: hidden;
+            text-overflow: ellipsis; /* Puntos suspensivos si el texto es muy largo */
+        }
+
+        .cob-chip-x {
+            flex: 0 0 auto;
+            font-size: 9px; /* Tamaño del ícono */
+            width: 12px;
+            height: 12px;
+            padding: 0;
+            line-height: 1;
+            text-align: center;
+            color: #666;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .cob-chip-x:hover {
+            color: #cc0000;
+        }
+
+        .cob-vacio {
+            font-size: 11px;
+            color: #888;
+            font-style: italic;
         }
 
         .td-eliminar {
@@ -956,7 +984,7 @@
         function agregarFila() {
             const tbody = document.querySelector("#secondary-modal tbody");
 
-            // Crear nueva fila con un select para parentesco y un select2 para patologías
+            // Crear nueva fila con un select para parentesco y la celda de coberturas
             const newRow = document.createElement("tr");
             newRow.innerHTML = `
                 <td>
@@ -972,7 +1000,7 @@
                     <input type="number" min="1" max="99" value="1" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)">
                 </td>
                 <td>
-                    <select class="mi-select" style="width: 100%;" name="patologias[]" multiple="multiple"></select>
+                    <div class="cob-lista"><span class="cob-vacio">Sin cobertura especial</span></div>
                 </td>
                 <td class="td-eliminar">
                     <button onclick="eliminarFila(this)" class="btn-eliminar">❌</button>
@@ -981,30 +1009,19 @@
 
             // Agregar la fila a la tabla
             tbody.appendChild(newRow);
-
-            // **Reinicializar select2** en el nuevo select
-            $(newRow).find(".mi-select").select2({
-                placeholder: "Selecciona una opción...",
-                allowClear: true,
-                ajax: {
-                    url: '/static/preexistencias.json',
-                    dataType: 'json',
-                    delay: 250,
-                    processResults: function (data) {
-                        return {
-                            results: data.map(item => ({
-                                id: item.ID,
-                                text: item.Patologia
-                            }))
-                        };
-                    }
-                }
-            });
         }
 
         function eliminarFila(button) {
             let row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
+        }
+
+        function quitarCobertura(button) {
+            const lista = button.closest('.cob-lista');
+            button.closest('.cob-chip').remove();
+            if (!lista.querySelector('.cob-chip')) {
+                lista.innerHTML = '<span class="cob-vacio">Sin cobertura especial</span>';
+            }
         }
 
     </script>
@@ -1020,7 +1037,7 @@
                         <tr>
                             <th>Parentesco</th>
                             <th>Edad</th>
-                            <th>Patologias</th>
+                            <th>Coberturas</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1030,11 +1047,14 @@
                                     <button onclick="eliminarFila(this)" class="btn-eliminar-2">❌</button>
                                     {{ item.Parentesco }}</td>
                                 <td><input type="number" min="1" max="99" value="{{item.Edad }}" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)"/></td>
-                                <td><select class="mi-select" style="width: 100%;" name="patologias[]" multiple="multiple">
-                                    {% for patologia in item.Patologias %}
-                                        <option value="{{ patologia.ID }}" selected>{{ patologia.Patologia }}</option>
+                                <td>
+                                    <div class="cob-lista">
+                                    {% for cob in item.Coberturas %}
+                                        <span class="cob-chip" data-id-gecros="{{ cob.id }}"><span class="cob-chip-txt">{{ cob.nombre }}</span><button type="button" class="cob-chip-x" title="Quitar" onclick="quitarCobertura(this)">✕</button></span>
+                                    {% empty %}
+                                        <span class="cob-vacio">Sin cobertura especial</span>
                                     {% endfor %}
-                                    </select>
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -2218,15 +2238,14 @@
 
             // Modo escalonado: cotiza cada tramo por separado
             if (escalonadoOn) {
-                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: totalGrupal });
+                // TODO: valor de coberturas especiales — pendiente nueva API
+                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: 0 });
                 return;
             }
 
             const v1 = parseFloat(document.querySelector('#bonif_vigente')?.value) || 0;
             const v2 = parseFloat(document.querySelector('#bonif_manual')?.value) || 0;
             const bonificacion = Math.min(v1 + v2, 100); // suma Vigente + Manual, tope 100
-
-            //console.log(totalGrupal) // Valor de patologias en el grupo familiar
 
             // Obtener el valor de bonif_porc, que contiene el porcentaje y otro contenido
             const bonificacion_vigente = document.querySelector('#bonif_porc')?.textContent;
@@ -2259,7 +2278,7 @@
                 edades: edades,
                 aportes: aporte,
                 bonificaciones: bonificacion,
-                patologias: totalGrupal
+                patologias: 0 // TODO: valor de coberturas especiales — pendiente nueva API
             };
 
             //console.log(requestData)
@@ -2530,75 +2549,9 @@
     </script>
 
     <script>
-        let totalGrupal = 0; // Variable global
-        let preexistenciasData = {}; // Variable para almacenar los datos de preexistencias
-
-        $(document).ready(function () {
-            // Cargar los datos de preexistencias.json
-            $.getJSON('/static/preexistencias.json', function(data) {
-                preexistenciasData = data.reduce((acc, item) => {
-                    acc[item.ID] = item.Costo_mensual;
-                    return acc;
-                }, {});
-                // console.log("Datos de preexistencias cargados:", preexistenciasData); // Depuración
-
-                // Inicializar select2 después de cargar los datos
-                $('.mi-select').select2({
-                    placeholder: "Selecciona una opción...",
-                    allowClear: true,
-                    ajax: {
-                        url: '/static/preexistencias.json',
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return { search: params.term };
-                        },
-                        processResults: function (data, params) {
-                            var filteredData = data.filter(function (item) {
-                                return item.Patologia.toLowerCase().includes((params.term || '').toLowerCase());
-                            });
-                            return {
-                                results: filteredData.map(item => ({
-                                    id: item.ID,
-                                    text: item.Patologia,
-                                    costo_mensual: item.Costo_mensual
-                                }))
-                            };
-                        },
-                        error: function (jqXHR, textStatus, errorThrown) {
-                            console.error("Error al cargar el archivo JSON:", textStatus, errorThrown);
-                        }
-                    }
-                });
-
-                // Calcular el total grupal al cargar la página
-                calcularTotalGrupal();
-                actualizarPlanes(); // Asegura que los planes estén actualizados al abrir el modal
-
-                // Calcular el total grupal al seleccionar o deseleccionar opciones
-                $(document).on('select2:select select2:unselect', '.mi-select', function () {
-                    calcularTotalGrupal();
-                });
-            });
-
-            // Función para calcular el total grupal
-            function calcularTotalGrupal() {
-                totalGrupal = 0; // Reiniciar el total
-
-                // Iterar sobre todos los selects y sumar los costos seleccionados
-                $('.mi-select').each(function () {
-                    const selectedData = $(this).select2('data');
-                    // console.log("Datos seleccionados:", selectedData); // Depuración
-                    const costos = selectedData.map(option => preexistenciasData[option.id] || 0);
-                    totalGrupal += costos.reduce((acc, costo) => acc + costo, 0);
-                });
-
-                // Actualizar el total grupal en el pie de tabla
-                $('#total-grupal').text(totalGrupal.toFixed(2));
-                console.log("Costo mensual total:", totalGrupal);
-            }
-        });
-
+        // Los planes se recalculan al cargar el modal. El costo de las
+        // coberturas especiales queda pendiente de la nueva API.
+        document.addEventListener('DOMContentLoaded', actualizarPlanes);
     </script>
     {% if not widget_perms.cotizar %}<style>#Cotizar,#btn_cotizar{display:none!important}</style>{% endif %}
     {% if not widget_perms.enviar_bonificacion %}<style>.bonif-api-btn,.tramos-gecros-btn,#bonif_api_submit{display:none!important}</style>{% endif %}
