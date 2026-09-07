@@ -817,21 +817,28 @@
            detalle y los del buscador, que el req 5 obliga a achicar. */
         #cotizacion-table td.td-coberturas {
             overflow: visible;          /* pisa el text-overflow:ellipsis de `td` */
-            padding: 2px;
+            padding: 2px 4px;
             line-height: 1.1;
+            /* Fila: circulo a la izquierda, monto ocupando el resto. Al dejar
+               de apilarse en dos lineas la celda baja de alto, y ese alto se
+               reinvierte en agrandar los dos. */
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
         #cotizacion-table td.td-coberturas .cob-semaforo {
-            display: block;             /* sin leading de linea: la celda no engorda */
-            width: 100%;
-            font-size: 22px;            /* antes 15px */
+            flex: 0 0 auto;
+            font-size: 26px;            /* 15px -> 22px -> 26px */
             line-height: 1;
             padding: 0;
         }
 
-        /* ---------- Req 4: monto de la capita debajo del circulo --------- */
+        /* ---------- Req 4: monto de la capita, a la derecha del circulo --- */
         #cotizacion-table .cob-monto {
-            display: block;
-            font-size: 10px;
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: right;
+            font-size: 13px;            /* antes 10px */
             line-height: 1.1;
             font-weight: 600;
             color: #1b5e20;
