@@ -628,6 +628,7 @@
         #coberturas-modal {
             z-index: 1100;
             width: 420px;
+            height: auto;
             max-height: 88vh;
             overflow-y: auto;
             padding: 12px;
@@ -2803,9 +2804,12 @@
                 .forEach(function (c) {
                     const fila = document.createElement('div');
                     fila.className = 'cob-resultado';
-                    fila.innerHTML = '<span class="cob-semaforo cob-' + c.semaforo + '">●</span> ';
+                    const punto = document.createElement('span');
+                    punto.className = 'cob-semaforo cob-' + c.semaforo;
+                    punto.textContent = '●';
+                    fila.appendChild(punto);
                     fila.appendChild(document.createTextNode(
-                        c.nombre + '  ' + fmtARS(c.valor) + (c.pago_unico ? ' (único)' : '')
+                        ' ' + c.nombre + '  ' + fmtARS(c.valor) + (c.pago_unico ? ' (único)' : '')
                     ));
                     fila.onclick = function () { agregarCobertura(c.id); };
                     cont.appendChild(fila);
