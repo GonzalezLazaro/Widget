@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 import json
 from pandas import json_normalize
-from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, buscar_preexistencias, obtener_expedientes_grupo_familiar
+from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, extraer_doc_id, buscar_preexistencias, obtener_expedientes_grupo_familiar
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -574,10 +574,9 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 dni_aux = 0
 
                 if response_dniage.status_code == 200:
-                    data_dniage = response_dniage.json()
-
-                    dni_aux = data_dniage[0].get("doc_id") #DNI de agente de cuenta
-
+                    dni_aux = extraer_doc_id(response_dniage.json()) #DNI de agente de cuenta
+                    if not dni_aux:
+                        print("El grupo no tiene agente de cuenta.")
                 else:
                     print("No hay dni de agente de cuenta.")
 

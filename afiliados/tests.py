@@ -1,8 +1,9 @@
 from unittest.mock import patch, Mock
 
 from django.core.cache import cache
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
+from afiliados.utils import extraer_doc_id
 from afiliados.views import BuscarRetencionView
 
 
@@ -37,3 +38,20 @@ class ObtenerPreexTests(TestCase):
             BuscarRetencionView().obtener_preex()
 
         self.assertIsNone(cache.get('verificacion_diaria_preex'))
+
+
+class ExtraerDocIdTests(SimpleTestCase):
+    """dni_agecta responde 200 con `[]` si el grupo no tiene agente de cuenta."""
+
+    def test_lista_vacia_no_rompe(self):
+        """El caso que tiraba IndexError: 200 con cuerpo vacío."""
+        self.assertEqual(extraer_doc_id([]), 0)
+
+    def test_devuelve_el_doc_id(self):
+        self.assertEqual(extraer_doc_id([{"doc_id": 30111222}]), 30111222)
+
+    def test_payload_inesperado_cae_a_cero(self):
+        for payload in (None, {}, "", [None], [{}], [{"doc_id": None}]):
+            with self.subTest(payload=payload):
+                self.assertEqual(extraer_doc_id(payload), 0)
+
