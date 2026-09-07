@@ -63,15 +63,18 @@ def actualizar_token_gecros():
         return None
 
 
-def extraer_doc_id(payload):
-    """DNI del agente de cuenta del grupo, o 0 si no hay.
+def primer_valor(payload, campo, default=None):
+    """Primer registro de una respuesta JSON tipo lista -> `campo`.
 
-    La API de dni_agecta responde 200 con `[]` cuando el grupo no tiene
-    agente de cuenta asociado: mirar sólo el status_code no alcanza.
+    Varias APIs internas (dni_agecta, tipo_ben) responden 200 con `[]`
+    cuando no hay datos, así que mirar sólo el status_code no alcanza:
+    hay que mirar el cuerpo.
     """
     if isinstance(payload, list) and payload and isinstance(payload[0], dict):
-        return payload[0].get("doc_id") or 0
-    return 0
+        valor = payload[0].get(campo)
+        if valor is not None:
+            return valor
+    return default
 
 
 # Filtrar condición del grupo familiar
