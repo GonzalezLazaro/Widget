@@ -5,6 +5,7 @@ import requests
 import json
 from pandas import json_normalize
 from .utils import actualizar_token_wise, actualizar_token_gecros, condicion_grupal, primer_valor, parsear_coberturas, obtener_expedientes_grupo_familiar
+from .coberturas import obtener_catalogo
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -1866,3 +1867,18 @@ def evaluar_bonificacion_externa(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
 
+
+@requiere_permiso_json("accion.cotizar")
+def coberturas_catalogo(request):
+    """Catalogo de coberturas especiales para el buscador del modal.
+
+    Solo las activas: son las que el agente puede agregar. Las inactivas
+    igual llegan a la vista de retencion, porque Gecros puede tener cargada
+    una cobertura dada de baja y hay que mostrarla.
+    """
+    coberturas, periodo, precios_vigentes = obtener_catalogo()
+    return JsonResponse({
+        "periodo": periodo,
+        "precios_vigentes": precios_vigentes,
+        "coberturas": [c for c in coberturas if c["activo"]],
+    })

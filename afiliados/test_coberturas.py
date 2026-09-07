@@ -2,7 +2,8 @@ from datetime import date
 from unittest.mock import Mock, patch
 
 from django.core.cache import cache
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase, override_settings
+from django.urls import reverse
 
 from afiliados.coberturas import (
     CACHE_KEY_CATALOGO,
@@ -258,3 +259,35 @@ class ObtenerCatalogoTests(SimpleTestCase):
 
         self.assertEqual(coberturas, [])
         self.assertFalse(vigentes)
+
+@override_settings(WIDGET_AUTH_ENABLED=False)
+class CatalogoEndpointTests(TestCase):
+    """Solo las activas: son las que el agente puede agregar desde el buscador.
+
+    `requiere_permiso_json` hace passthrough con WIDGET_AUTH_ENABLED=False
+    (ver `cuentas/decoradores.py`), asi que el test no depende del entorno.
+    """
+
+    def setUp(self):
+        cache.delete(CACHE_KEY_CATALOGO)
+
+    def test_devuelve_solo_activas(self):
+        catalogo = [normalizar(cob(id_externo=1, cbtActivo=0)),
+                    normalizar(cob(id_externo=2, cbtActivo=1))]
+        with patch("afiliados.views.obtener_catalogo",
+                   return_value=(catalogo, "202610", True)):
+            respuesta = self.client.get(reverse("afiliados:coberturas_catalogo"))
+
+        self.assertEqual(respuesta.status_code, 200)
+        cuerpo = respuesta.json()
+        self.assertEqual(cuerpo["periodo"], "202610")
+        self.assertTrue(cuerpo["precios_vigentes"])
+        self.assertEqual([c["id"] for c in cuerpo["coberturas"]], [2])
+
+    def test_catalogo_caido_devuelve_lista_vacia(self):
+        with patch("afiliados.views.obtener_catalogo",
+                   return_value=([], "202610", False)):
+            respuesta = self.client.get(reverse("afiliados:coberturas_catalogo"))
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json()["coberturas"], [])

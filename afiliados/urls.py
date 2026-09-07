@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import BuscarAfiliadoView, BuscarRetencionView, MesaDeEntradaView
-from .views import guardar_expediente, archivo_expediente, cotizar_actual, descargar_adjunto, previsualizar_adjunto, buscar_beneficiario, obtener_destinos, crear_remito
+from .views import guardar_expediente, archivo_expediente, cotizar_actual, descargar_adjunto, previsualizar_adjunto, buscar_beneficiario, obtener_destinos, crear_remito, coberturas_catalogo
 from .views import obtener_generadores_api, obtener_generadores
 from .views import cargar_bonificacion_externa, evaluar_bonificacion_externa
 app_name = 'afiliados'
@@ -12,6 +12,7 @@ urlpatterns = [
     path('retencion//', BuscarRetencionView.as_view(), name='buscar_retencion'), # Sin DNI
     path('retencion/<str:dni>/', BuscarRetencionView.as_view(), name='buscar_retencion'),
     path('api/cotizar/', cotizar_actual, name='cotizar_actual'),
+    path('api/coberturas/', coberturas_catalogo, name='coberturas_catalogo'),
     
     path('mesa//', MesaDeEntradaView.as_view(), name='mesa_entrada'), # Sin DNI
     path('mesa/<str:dni>/', MesaDeEntradaView.as_view(), name='mesa_entrada'),
