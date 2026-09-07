@@ -815,16 +815,31 @@
         /* ---------- Req 3: circulos grandes SOLO en la tabla ------------- */
         /* Scopeado: .cob-semaforo la usan tambien los puntos del listado del
            detalle y los del buscador, que el req 5 obliga a achicar. */
+        /* El <td> NO puede ser el contenedor flex: `display:flex` lo saca de
+           `table-cell` y con `border-collapse: collapse` la celda deja de
+           participar del modelo de bordes colapsados, asi que la columna se
+           queda sin bordes. El flex va en un wrapper interno. */
         #cotizacion-table td.td-coberturas {
             overflow: visible;          /* pisa el text-overflow:ellipsis de `td` */
             padding: 2px 4px;
             line-height: 1.1;
-            /* Fila: circulo a la izquierda, monto ocupando el resto. Al dejar
-               de apilarse en dos lineas la celda baja de alto, y ese alto se
-               reinvierte en agrandar los dos. */
+        }
+        /* Fila: circulo a la izquierda, monto ocupando el resto. Al no
+           apilarse en dos lineas la celda baja de alto, y ese alto se
+           reinvierte en agrandar los dos. */
+        #cotizacion-table .cob-celda {
             display: flex;
             align-items: center;
             gap: 5px;
+            overflow: visible;
+        }
+        /* Ancho propio: el circulo de 26px mas "$1.250.000*" no entran en los
+           82px del `td` global. La 3ra columna es la de patologias tanto en
+           las filas del template (3 celdas) como en las de agregarFila (4). */
+        #cotizacion-table th:nth-child(3),
+        #cotizacion-table td:nth-child(3) {
+            width: 96px;
+            max-width: 96px;
         }
         #cotizacion-table td.td-coberturas .cob-semaforo {
             flex: 0 0 auto;
@@ -859,6 +874,13 @@
             color: #b26a00;
             font-weight: 600;
         }
+        /* La X de cerrar es position:absolute en top:10 right:10 y mide 25px,
+           o sea tapa el encabezado de la tabla, que arranca pegado al borde
+           del contenido. Se le reserva la franja de arriba. */
+        #secondary-modal-content {
+            padding-top: 26px;
+        }
+
         /* La fila crece a ~37px: el boton de borrar de las filas dinamicas
            esta en top:18% + translateY(-50%) y se iba arriba del borde. */
         #cotizacion-table .td-eliminar .btn-eliminar { top: 50%; }
@@ -1301,9 +1323,11 @@
                     <input type="number" min="1" max="99" value="1" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)">
                 </td>
                 <td class="td-coberturas">
-                    <button type="button" class="cob-semaforo cob-nada"
-                            onclick="abrirCoberturas(this)"
-                            title="Ver patologias">-</button>
+                    <div class="cob-celda">
+                        <button type="button" class="cob-semaforo cob-nada"
+                                onclick="abrirCoberturas(this)"
+                                title="Ver patologias">-</button>
+                    </div>
                 </td>
                 <td class="td-eliminar">
                     <button onclick="eliminarFila(this)" class="btn-eliminar">❌</button>
@@ -1347,10 +1371,12 @@
                                     {{ item.Parentesco }}</td>
                                 <td><input type="number" min="1" max="99" value="{{item.Edad }}" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)"/></td>
                                 <td class="td-coberturas">
-                                    <button type="button"
-                                            class="cob-semaforo cob-{{ item.Semaforo|default:'nada' }}"
-                                            onclick="abrirCoberturas(this)"
-                                            title="Ver patologias">{% if item.Semaforo %}●{% else %}-{% endif %}</button>
+                                    <div class="cob-celda">
+                                        <button type="button"
+                                                class="cob-semaforo cob-{{ item.Semaforo|default:'nada' }}"
+                                                onclick="abrirCoberturas(this)"
+                                                title="Ver patologias">{% if item.Semaforo %}●{% else %}-{% endif %}</button>
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -2945,15 +2971,17 @@
                 ? lista.length + ' patología(s) · peor: ' + color
                 : 'Sin patologías';
 
-            // Monto de la capita, debajo del circulo. Se crea on-demand: asi lo
-            // tienen tanto las filas del template como las de agregarFila(),
-            // sin duplicar markup. Va como HERMANO del boton, porque el
-            // btn.textContent de arriba borraria cualquier hijo.
-            let monto = td.querySelector('.cob-monto');
+            // Monto de la capita, a la derecha del circulo. Se crea on-demand:
+            // asi lo tienen tanto las filas del template como las de
+            // agregarFila(), sin duplicar markup. Va como HERMANO del boton
+            // dentro de .cob-celda, porque el btn.textContent de arriba
+            // borraria cualquier hijo. Fallback al td por si falta el wrapper.
+            const celda = td.querySelector('.cob-celda') || td;
+            let monto = celda.querySelector('.cob-monto');
             if (!monto) {
                 monto = document.createElement('span');
                 monto.className = 'cob-monto';
-                td.appendChild(monto);
+                celda.appendChild(monto);
             }
             const m = montoDeCapita(lista);
             // Todas sin catalogo: el precio es DESCONOCIDO, no cero.
