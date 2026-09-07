@@ -583,57 +583,44 @@
             margin-bottom: 5px;
         }
 
-        /* Coberturas especiales: chips read-only con el ID de Gecros. */
-        .cob-lista {
-            max-height: 30px; /* Altura máxima para habilitar scroll */
-            overflow-y: auto; /* Scroll vertical */
-            overflow-x: hidden; /* Evitar desbordamiento horizontal */
-            text-align: left;
-        }
-
-        .cob-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px; /* Espacio entre el texto y la cruz */
-            max-width: 50%; /* Asegurar que las etiquetas no desborden */
-            margin: 1px;
-            padding: 1px 4px;
-            border: 1px solid #aaa;
-            border-radius: 4px;
-            background: #e4e4e4;
-            font-size: 11px;
-            vertical-align: middle;
-            overflow: hidden;
-        }
-
-        .cob-chip-txt {
-            white-space: nowrap; /* Evitar que el texto se corte */
-            overflow: hidden;
-            text-overflow: ellipsis; /* Puntos suspensivos si el texto es muy largo */
-        }
-
-        .cob-chip-x {
-            flex: 0 0 auto;
-            font-size: 9px; /* Tamaño del ícono */
-            width: 12px;
-            height: 12px;
-            padding: 0;
-            line-height: 1;
-            text-align: center;
-            color: #666;
+        /* Coberturas especiales: semáforo por cápita. */
+        .cob-semaforo {
             background: transparent;
             border: none;
             cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            padding: 0 4px;
         }
 
-        .cob-chip-x:hover {
-            color: #cc0000;
+        .cob-rojo     { color: #c62828; }
+        .cob-amarillo { color: #f9a825; }
+        .cob-verde    { color: #2e7d32; }
+        .cob-gris     { color: #9e9e9e; }
+        .cob-nada     { color: #bdbdbd; font-weight: bold; }
+
+        /* La usa el botón de quitar del modal de detalle (Task 8). */
+        .cob-chip-x {
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            flex: 0 0 auto;
+            font-size: 10px;
+            line-height: 1;
+            padding: 0;
         }
 
-        .cob-vacio {
+        .cob-chip-x:hover { color: #cc0000; }
+
+        .cob-aviso-precios {
+            background: #fff8e1;
+            border: 1px solid #f9a825;
+            border-radius: 4px;
+            color: #7a5c00;
             font-size: 11px;
-            color: #888;
-            font-style: italic;
+            margin: 4px 0;
+            padding: 4px 8px;
         }
 
         .td-eliminar {
@@ -999,8 +986,10 @@
                 <td>
                     <input type="number" min="1" max="99" value="1" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)">
                 </td>
-                <td>
-                    <div class="cob-lista"><span class="cob-vacio">Sin cobertura especial</span></div>
+                <td class="td-coberturas">
+                    <button type="button" class="cob-semaforo cob-nada"
+                            onclick="abrirCoberturas(this)"
+                            title="Ver coberturas especiales">-</button>
                 </td>
                 <td class="td-eliminar">
                     <button onclick="eliminarFila(this)" class="btn-eliminar">❌</button>
@@ -1009,19 +998,13 @@
 
             // Agregar la fila a la tabla
             tbody.appendChild(newRow);
+            newRow.querySelector('.td-coberturas')._coberturas = [];
         }
 
         function eliminarFila(button) {
             let row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
-        }
-
-        function quitarCobertura(button) {
-            const lista = button.closest('.cob-lista');
-            button.closest('.cob-chip').remove();
-            if (!lista.querySelector('.cob-chip')) {
-                lista.innerHTML = '<span class="cob-vacio">Sin cobertura especial</span>';
-            }
+            recalcularCoberturas();
         }
 
     </script>
@@ -1047,14 +1030,11 @@
                                     <button onclick="eliminarFila(this)" class="btn-eliminar-2">❌</button>
                                     {{ item.Parentesco }}</td>
                                 <td><input type="number" min="1" max="99" value="{{item.Edad }}" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)"/></td>
-                                <td>
-                                    <div class="cob-lista">
-                                    {% for cob in item.Coberturas %}
-                                        <span class="cob-chip" data-id-gecros="{{ cob.id }}"><span class="cob-chip-txt">{{ cob.nombre }}</span><button type="button" class="cob-chip-x" title="Quitar" onclick="quitarCobertura(this)">✕</button></span>
-                                    {% empty %}
-                                        <span class="cob-vacio">Sin cobertura especial</span>
-                                    {% endfor %}
-                                    </div>
+                                <td class="td-coberturas">
+                                    <button type="button"
+                                            class="cob-semaforo cob-{{ item.Semaforo|default:'nada' }}"
+                                            onclick="abrirCoberturas(this)"
+                                            title="Ver coberturas especiales">{% if item.Semaforo %}●{% else %}-{% endif %}</button>
                                 </td>
                             </tr>
                         {% endfor %}
@@ -2548,10 +2528,79 @@
 
     </script>
 
+    {{ coberturas_iniciales|json_script:"coberturas-iniciales" }}
     <script>
-        // Los planes se recalculan al cargar el modal. El costo de las
-        // coberturas especiales queda pendiente de la nueva API.
-        document.addEventListener('DOMContentLoaded', actualizarPlanes);
+        // ===== Coberturas especiales =====
+        // El estado de cada cápita vive en td._coberturas: propiedad del nodo,
+        // no atributo. Sin escapado de JSON, y muere con la fila.
+        const ORDEN_SEMAFORO = { rojo: 0, amarillo: 1, verde: 2 };
+        const FMT_ARS = new Intl.NumberFormat('es-AR', {
+            style: 'currency', currency: 'ARS', minimumFractionDigits: 0
+        });
+
+        function fmtARS(n) { return FMT_ARS.format(n || 0); }
+
+        function celdasCoberturas() {
+            return document.querySelectorAll('#secondary-modal td.td-coberturas');
+        }
+
+        // Manda el peor de las que resolvieron. Las sin catálogo no participan:
+        // se ven al abrir el modal, que es donde el agente puede accionarlas.
+        function semaforoDe(lista) {
+            if (!lista || !lista.length) return null;
+            const resueltas = lista.filter(function (c) { return !c.sin_catalogo; });
+            if (!resueltas.length) return 'gris';
+            return resueltas.map(function (c) { return c.semaforo; })
+                .sort(function (a, b) { return ORDEN_SEMAFORO[a] - ORDEN_SEMAFORO[b]; })[0];
+        }
+
+        function pintarSemaforo(td) {
+            const lista = td._coberturas || [];
+            const color = semaforoDe(lista);
+            const btn = td.querySelector('.cob-semaforo');
+            if (!btn) return;
+            btn.className = 'cob-semaforo cob-' + (color || 'nada');
+            btn.textContent = color ? '●' : '-';
+            btn.title = lista.length
+                ? lista.length + ' cobertura(s) especial(es)'
+                : 'Sin cobertura especial';
+        }
+
+        function totalesCoberturas() {
+            let mensual = 0, unico = 0;
+            celdasCoberturas().forEach(function (td) {
+                (td._coberturas || []).forEach(function (c) {
+                    if (c.pago_unico) unico += c.valor || 0;
+                    else mensual += c.valor || 0;
+                });
+            });
+            return { mensual: mensual, unico: unico };
+        }
+
+        function recalcularCoberturas() {
+            celdasCoberturas().forEach(pintarSemaforo);
+            const t = totalesCoberturas();
+            const elMensual = document.getElementById('cob-total-mensual');
+            const elUnico = document.getElementById('cob-total-unico');
+            const filaUnico = document.getElementById('cob-fila-unico');
+            if (elMensual) elMensual.textContent = fmtARS(t.mensual);
+            if (elUnico) elUnico.textContent = fmtARS(t.unico);
+            if (filaUnico) filaUnico.style.display = t.unico ? '' : 'none';
+        }
+
+        // Stub: la Task 8 lo reemplaza por el modal de detalle.
+        function abrirCoberturas(btn) {}
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const bloque = document.getElementById('coberturas-iniciales');
+            const inicial = bloque ? JSON.parse(bloque.textContent) : [];
+            document.querySelectorAll('#secondary-modal tbody tr').forEach(function (tr, i) {
+                const td = tr.querySelector('td.td-coberturas');
+                if (td) td._coberturas = inicial[i] || [];
+            });
+            recalcularCoberturas();
+            actualizarPlanes();
+        });
     </script>
     {% if not widget_perms.cotizar %}<style>#Cotizar,#btn_cotizar{display:none!important}</style>{% endif %}
     {% if not widget_perms.enviar_bonificacion %}<style>.bonif-api-btn,.tramos-gecros-btn,#bonif_api_submit{display:none!important}</style>{% endif %}
