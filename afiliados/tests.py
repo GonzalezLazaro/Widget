@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from afiliados.utils import parsear_coberturas
+from afiliados.utils import extraer_doc_id, parsear_coberturas
 
 
 class ParsearCoberturasTests(SimpleTestCase):
@@ -28,3 +28,19 @@ class ParsearCoberturasTests(SimpleTestCase):
     def test_sin_ids_devuelve_vacio(self):
         for entrada in (None, "", "   ", "abc", ","):
             self.assertEqual(parsear_coberturas(entrada, "HTA"), [])
+
+
+class ExtraerDocIdTests(SimpleTestCase):
+    """dni_agecta responde 200 con `[]` si el grupo no tiene agente de cuenta."""
+
+    def test_lista_vacia_no_rompe(self):
+        """El caso que tiraba IndexError: 200 con cuerpo vacío."""
+        self.assertEqual(extraer_doc_id([]), 0)
+
+    def test_devuelve_el_doc_id(self):
+        self.assertEqual(extraer_doc_id([{"doc_id": 30111222}]), 30111222)
+
+    def test_payload_inesperado_cae_a_cero(self):
+        for payload in (None, {}, "", [None], [{}], [{"doc_id": None}]):
+            with self.subTest(payload=payload):
+                self.assertEqual(extraer_doc_id(payload), 0)

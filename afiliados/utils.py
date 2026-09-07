@@ -63,6 +63,17 @@ def actualizar_token_gecros():
         return None
 
 
+def extraer_doc_id(payload):
+    """DNI del agente de cuenta del grupo, o 0 si no hay.
+
+    La API de dni_agecta responde 200 con `[]` cuando el grupo no tiene
+    agente de cuenta asociado: mirar sólo el status_code no alcanza.
+    """
+    if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+        return payload[0].get("doc_id") or 0
+    return 0
+
+
 # Filtrar condición del grupo familiar
 def condicion_grupal(convenio):
     if convenio:
