@@ -126,12 +126,19 @@ TTL_VIGENTE = 6 * 3600      # precios del periodo próximo ya cargados
 TTL_FALLBACK = 15 * 60      # se está usando un periodo viejo: reintentar pronto
 
 def _pedir_periodo(periodo):
-    """Una consulta al catálogo. Devuelve [] si la respuesta no es una lista."""
+    """Una consulta al catálogo. Devuelve [] si la respuesta no es una lista.
+
+    Filtra los elementos que no son dicts: la promesa de `obtener_catalogo`
+    es no levantar nunca, y un `[null]` o un `["error"]` haría estallar el
+    `.get()` de más abajo con un AttributeError que el `except` no cubre.
+    """
     respuesta = requests.get(URL_CATALOGO, params={"periodo": periodo},
                              timeout=settings.REQUESTS_TIMEOUT)
     respuesta.raise_for_status()
     datos = respuesta.json()
-    return datos if isinstance(datos, list) else []
+    if not isinstance(datos, list):
+        return []
+    return [c for c in datos if isinstance(c, dict)]
 
 def obtener_catalogo():
     """(coberturas, periodo_usado, precios_vigentes).
@@ -172,4 +179,3 @@ def obtener_catalogo():
         TTL_VIGENTE if vigentes else TTL_FALLBACK,
     )
     return coberturas, periodo, vigentes
-

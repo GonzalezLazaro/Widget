@@ -249,3 +249,12 @@ class ObtenerCatalogoTests(SimpleTestCase):
 
         self.assertEqual(len(coberturas), 2)
         self.assertEqual([c["activo"] for c in coberturas], [False, True])
+
+    def test_lista_con_elementos_no_dict_no_rompe(self):
+        """La promesa es no levantar nunca, ni con un cuerpo malformado."""
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=self._respuesta([None, "error", 123])):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertFalse(vigentes)
