@@ -6,6 +6,8 @@ es por `id_externo`.
 """
 from datetime import date
 
+from .utils import parsear_coberturas
+
 URL_CATALOGO = "https://gestionafiliaciones.nobissalud.com:5003/api/CoberturaTipo"
 ID_CATEGORIA_AGUDA = 4
 MESES_FALLBACK = 3
@@ -74,3 +76,43 @@ def semaforo_grupo(coberturas):
         return "gris"
     return min((c["semaforo"] for c in resueltas),
                key=lambda s: ORDEN_SEMAFORO.get(s, 99))
+
+def indice_por_id_externo(catalogo):
+    """Mapa id -> cobertura normalizada.
+
+    Trabaja sobre lo que devuelve `obtener_catalogo()`, que ya viene
+    normalizado. Ante id repetido gana la activa: en el catálogo real el
+    id_externo 1 aparece dos veces, como "FALSEO B_RINITIS" (activa) y como
+    "NO USAR- COBERTURA GENERAL" (inactiva).
+    """
+    indice = {}
+    for cob in catalogo:
+        clave = cob.get("id")
+        if clave is None:
+            continue
+        previo = indice.get(clave)
+        if previo is None or (cob.get("activo") and not previo.get("activo")):
+            indice[clave] = cob
+    return indice
+
+def resolver(ids_gecros, nombres, indice):
+    """Coberturas crudas de Gecros -> lista normalizada.
+
+    Lo que no está en el catálogo se conserva con el nombre que mandó Gecros y
+    semáforo gris: el agente tiene que ver que la cobertura existe aunque no se
+    pueda tarifar.
+    """
+    resueltas = []
+    for cruda in parsear_coberturas(ids_gecros, nombres):
+        del_catalogo = indice.get(cruda["id"])
+        if del_catalogo is None:
+            resueltas.append({
+                "id": cruda["id"], "nombre": cruda["nombre"], "categoria": "",
+                "semaforo": "gris", "valor": 0, "pago_unico": False,
+                "mensaje": "", "activo": False, "sin_catalogo": True,
+            })
+        else:
+            # Copia: dos cápitas con la misma cobertura no deben compartir el
+            # mismo objeto, porque el JS las trata como entradas independientes.
+            resueltas.append(dict(del_catalogo))
+    return resueltas

@@ -4,9 +4,11 @@ from django.test import SimpleTestCase
 
 from afiliados.coberturas import (
     es_pago_unico,
+    indice_por_id_externo,
     normalizar,
     periodo_anterior,
     periodo_proximo,
+    resolver,
     semaforo,
     semaforo_grupo,
 )
@@ -99,3 +101,62 @@ class SemaforoGrupoTests(SimpleTestCase):
         lista = [{"semaforo": "gris", "sin_catalogo": True},
                  {"semaforo": "gris", "sin_catalogo": True}]
         self.assertEqual(semaforo_grupo(lista), "gris")
+
+class IndiceTests(SimpleTestCase):
+    """El índice trabaja sobre coberturas ya normalizadas."""
+
+    def test_indexa_por_id(self):
+        indice = indice_por_id_externo([normalizar(cob(id_externo=643)),
+                                        normalizar(cob(id_externo=174))])
+        self.assertEqual(sorted(indice), [174, 643])
+
+    def test_id_duplicado_gana_la_activa(self):
+        """En el catálogo real id_externo=1 aparece activo e inactivo."""
+        indice = indice_por_id_externo([
+            normalizar(cob(id_externo=1, cbtActivo=0, cbtNombre="NO USAR- COBERTURA GENERAL")),
+            normalizar(cob(id_externo=1, cbtActivo=1, cbtNombre="FALSEO B_RINITIS")),
+        ])
+        self.assertEqual(indice[1]["nombre"], "FALSEO B_RINITIS")
+
+class ResolverTests(SimpleTestCase):
+    def setUp(self):
+        self.indice = indice_por_id_externo([
+            normalizar(cob(id_externo=643, cbtNombre="AG_AMIGDALITIS", id_categoria=4,
+                           categoria_nombre="Aguda", valor_actual=425567.0)),
+            normalizar(cob(id_externo=551, cbtNombre="FALSEO_V_ANEMIA", id_categoria=1,
+                           categoria_nombre="Verde", valor_actual=20247.0)),
+        ])
+
+    def test_resuelve_por_id_externo(self):
+        r = resolver("643", "AG_AMIGDALITIS", self.indice)
+        self.assertEqual(len(r), 1)
+        self.assertEqual(r[0]["nombre"], "AG_AMIGDALITIS")
+        self.assertEqual(r[0]["valor"], 425567.0)
+        self.assertTrue(r[0]["pago_unico"])
+        self.assertFalse(r[0]["sin_catalogo"])
+
+    def test_sin_match_conserva_el_nombre_de_gecros(self):
+        """Caso real del afiliado 38407571: sus IDs no están en el catálogo."""
+        r = resolver("471", "ANTICONCEPTIVOS ORALES", self.indice)
+        self.assertEqual(r, [{
+            "id": 471, "nombre": "ANTICONCEPTIVOS ORALES", "categoria": "",
+            "semaforo": "gris", "valor": 0, "pago_unico": False,
+            "mensaje": "", "activo": False, "sin_catalogo": True,
+        }])
+
+    def test_mezcla_resuelta_y_sin_match(self):
+        r = resolver("643, 471", "AG_AMIGDALITIS, ANTICONCEPTIVOS ORALES", self.indice)
+        self.assertEqual([c["sin_catalogo"] for c in r], [False, True])
+
+    def test_gecros_manda_padding_en_los_nombres(self):
+        r = resolver("551", "FALSEO_V_ANEMIA          ", self.indice)
+        self.assertEqual(r[0]["nombre"], "FALSEO_V_ANEMIA")
+
+    def test_sin_coberturas(self):
+        self.assertEqual(resolver(None, None, self.indice), [])
+
+    def test_indice_vacio_todo_sin_catalogo(self):
+        """Si el catálogo está caído, nada resuelve pero nada rompe."""
+        r = resolver("643", "AG_AMIGDALITIS", {})
+        self.assertTrue(r[0]["sin_catalogo"])
+        self.assertEqual(r[0]["valor"], 0)
