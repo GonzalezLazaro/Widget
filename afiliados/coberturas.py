@@ -6,6 +6,10 @@ es por `id_externo`.
 """
 from datetime import date
 
+import requests
+from django.conf import settings
+from django.core.cache import cache
+
 from .utils import parsear_coberturas
 
 URL_CATALOGO = "https://gestionafiliaciones.nobissalud.com:5003/api/CoberturaTipo"
@@ -116,3 +120,56 @@ def resolver(ids_gecros, nombres, indice):
             # mismo objeto, porque el JS las trata como entradas independientes.
             resueltas.append(dict(del_catalogo))
     return resueltas
+
+CACHE_KEY_CATALOGO = "coberturas_catalogo"
+TTL_VIGENTE = 6 * 3600      # precios del periodo próximo ya cargados
+TTL_FALLBACK = 15 * 60      # se está usando un periodo viejo: reintentar pronto
+
+def _pedir_periodo(periodo):
+    """Una consulta al catálogo. Devuelve [] si la respuesta no es una lista."""
+    respuesta = requests.get(URL_CATALOGO, params={"periodo": periodo},
+                             timeout=settings.REQUESTS_TIMEOUT)
+    respuesta.raise_for_status()
+    datos = respuesta.json()
+    return datos if isinstance(datos, list) else []
+
+def obtener_catalogo():
+    """(coberturas, periodo_usado, precios_vigentes).
+
+    Pide el periodo próximo. Si ningún registro trae `valor_actual`, los precios
+    del mes que viene todavía no se cargaron: retrocede mes a mes hasta
+    MESES_FALLBACK veces y avisa con precios_vigentes=False.
+
+    Nunca levanta: ante cualquier error devuelve catálogo vacío para que la
+    vista de retención siga cargando.
+    """
+    cacheado = cache.get(CACHE_KEY_CATALOGO)
+    if cacheado:
+        return cacheado["coberturas"], cacheado["periodo"], cacheado["precios_vigentes"]
+
+    proximo = periodo_proximo()
+    periodo = proximo
+    datos = []
+
+    try:
+        for _ in range(MESES_FALLBACK + 1):
+            datos = _pedir_periodo(periodo)
+            if any(c.get("valor_actual") for c in datos):
+                break
+            periodo = periodo_anterior(periodo)
+        else:
+            print("Ningún periodo del catálogo de coberturas tiene precios cargados.")
+            return [], proximo, False
+    except (requests.exceptions.RequestException, ValueError) as e:
+        print(f"Error al consultar el catálogo de coberturas: {e}")
+        return [], proximo, False
+
+    coberturas = [normalizar(c) for c in datos]
+    vigentes = periodo == proximo
+    cache.set(
+        CACHE_KEY_CATALOGO,
+        {"coberturas": coberturas, "periodo": periodo, "precios_vigentes": vigentes},
+        TTL_VIGENTE if vigentes else TTL_FALLBACK,
+    )
+    return coberturas, periodo, vigentes
+

@@ -1,11 +1,15 @@
 from datetime import date
+from unittest.mock import Mock, patch
 
+from django.core.cache import cache
 from django.test import SimpleTestCase
 
 from afiliados.coberturas import (
+    CACHE_KEY_CATALOGO,
     es_pago_unico,
     indice_por_id_externo,
     normalizar,
+    obtener_catalogo,
     periodo_anterior,
     periodo_proximo,
     resolver,
@@ -160,3 +164,88 @@ class ResolverTests(SimpleTestCase):
         r = resolver("643", "AG_AMIGDALITIS", {})
         self.assertTrue(r[0]["sin_catalogo"])
         self.assertEqual(r[0]["valor"], 0)
+
+class ObtenerCatalogoTests(SimpleTestCase):
+    """Un periodo sin precios cargados devuelve todos los valor_actual en 0."""
+
+    def setUp(self):
+        cache.delete(CACHE_KEY_CATALOGO)
+
+    def tearDown(self):
+        cache.delete(CACHE_KEY_CATALOGO)
+
+    def _respuesta(self, payload):
+        r = Mock()
+        r.raise_for_status.return_value = None
+        r.json.return_value = payload
+        return r
+
+    def test_usa_el_periodo_proximo_si_tiene_precios(self):
+        con_precios = [cob(id_externo=1, valor_actual=1000.0)]
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=self._respuesta(con_precios)) as get:
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(periodo, periodo_proximo())
+        self.assertTrue(vigentes)
+        self.assertEqual(coberturas[0]["valor"], 1000.0)
+        self.assertEqual(get.call_count, 1)
+
+    def test_cae_al_periodo_anterior_si_no_hay_precios(self):
+        sin_precios = [cob(id_externo=1, valor_actual=0.0)]
+        con_precios = [cob(id_externo=1, valor_actual=999.0)]
+        with patch("afiliados.coberturas.requests.get",
+                   side_effect=[self._respuesta(sin_precios),
+                                self._respuesta(con_precios)]):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(periodo, periodo_anterior(periodo_proximo()))
+        self.assertFalse(vigentes)
+        self.assertEqual(coberturas[0]["valor"], 999.0)
+
+    def test_ningun_periodo_con_precios(self):
+        sin_precios = self._respuesta([cob(id_externo=1, valor_actual=0.0)])
+        with patch("afiliados.coberturas.requests.get", return_value=sin_precios):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertFalse(vigentes)
+
+    def test_api_caida_no_rompe(self):
+        """La vista de retención tiene que cargar igual."""
+        import requests as _requests
+        with patch("afiliados.coberturas.requests.get",
+                   side_effect=_requests.exceptions.ConnectionError("boom")):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertEqual(periodo, periodo_proximo())
+        self.assertFalse(vigentes)
+
+    def test_respuesta_no_lista_no_rompe(self):
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=self._respuesta({"error": "nope"})):
+            coberturas, _, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertFalse(vigentes)
+
+    def test_segunda_llamada_usa_cache(self):
+        con_precios = [cob(id_externo=1, valor_actual=1000.0)]
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=self._respuesta(con_precios)) as get:
+            obtener_catalogo()
+            obtener_catalogo()
+
+        self.assertEqual(get.call_count, 1)
+
+    def test_devuelve_tambien_los_inactivos(self):
+        """resolver() los necesita: Gecros manda coberturas dadas de baja."""
+        datos = [cob(id_externo=1, cbtActivo=0, valor_actual=0.0),
+                 cob(id_externo=2, cbtActivo=1, valor_actual=500.0)]
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=self._respuesta(datos)):
+            coberturas, _, _ = obtener_catalogo()
+
+        self.assertEqual(len(coberturas), 2)
+        self.assertEqual([c["activo"] for c in coberturas], [False, True])
