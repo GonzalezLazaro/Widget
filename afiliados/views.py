@@ -4,7 +4,8 @@ from datetime import datetime
 import requests
 import json
 from pandas import json_normalize
-from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, buscar_preexistencias, obtener_expedientes_grupo_familiar
+from .utils import actualizar_token_wise, actualizar_token_gecros, condicion_grupal, primer_valor, obtener_expedientes_grupo_familiar
+from .coberturas import indice_por_id_externo, obtener_catalogo, resolver, semaforo_grupo
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -437,64 +438,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
  
         return token
 
-    def obtener_preex(self):
-        # Endpoint y configuración
-        url_api = "https://cotizador.nobis.com.ar/api/preex"
-        headers = {
-            "Content-Type": "application/json",
-            'Authorization': 'Bearer 496ae7b9-0787-482e-bbe2-235279237940'
-        }
-
-        # Obtener la clave dinámica almacenada en caché
-        clave_dinamica_cache = cache.get('clave_dinamica_preex')
-        verificacion_diaria = cache.get('verificacion_diaria_preex')
-
-        # Si no se realizó la verificación diaria
-        if not verificacion_diaria:
-            try:
-                # Obtener la clave dinámica actual desde la API
-                response = requests.get(url_api, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
-                response.raise_for_status()
-                response_json = response.json()
-
-                # La API puede responder 200 con cuerpo `null` o `{}`. En ese caso
-                # no se toca el archivo local ni se marca la verificación diaria:
-                # se sigue sirviendo la última copia buena y se reintenta después.
-                if not response_json:
-                    print("La API de preexistencias no devolvió datos. Se usa el archivo local.")
-                else:
-                    clave_dinamica_actual = next(iter(response_json.keys()))
-
-                    # Si no hay clave almacenada o si cambió, actualizar el archivo
-                    if clave_dinamica_cache != clave_dinamica_actual:
-                        print("La clave dinámica ha cambiado. Actualizando archivo...")
-                        actualizar_preexistencias()
-                        cache.set('clave_dinamica_preex', clave_dinamica_actual, timeout=30 * 24 * 3600)  # 30 días
-
-                    # Registrar que se realizó la verificación diaria
-                    cache.set('verificacion_diaria_preex', True, timeout=24 * 3600)  # 24 horas
-
-            except (requests.exceptions.RequestException, ValueError) as e:
-                print(f"Error al consultar la clave dinámica: {e}")
-
-        # Ruta absoluta al archivo preexistencias.json
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        json_path = os.path.join(base_dir, 'home', 'static', 'preexistencias.json')
-
-        # Leer y devolver el contenido del archivo actualizad
-        try:
-           with open(json_path, 'r', encoding='utf-8') as archivo:
-              return json.load(archivo)
-        except FileNotFoundError:
-           print("Archivo local no encontrado. Ejecutando actualización...")
-           actualizar_preexistencias()
-           with open(json_path, 'r', encoding='utf-8') as archivo:
-              return json.load(archivo)
-
- 
     def get(self, request, dni=None, *args, **kwargs):
-
-        self.obtener_preex() # Verificar lista de patologias
 
         # Validación de entrada de DNI
         if not dni:
@@ -541,6 +485,12 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 df_selected = df_afiliado[["nombre", "nroAfi", "parentesco", "estadoBenef", "benGrId", "convenio.value"]]
                 df_selected.columns = ["Nombre", "DNI", "Parentesco", "Estado", "Grupo", "Condicion"]
 
+                # Catálogo de coberturas especiales: una sola consulta para todo
+                # el grupo. Si está caído el índice queda vacío, todas las
+                # coberturas se muestran en gris y la vista carga igual.
+                catalogo, coberturas_periodo, coberturas_precios_vigentes = obtener_catalogo()
+                indice_coberturas = indice_por_id_externo(catalogo)
+
                 # Crear lista de resultados combinados
                 resultados_combinados = []
 
@@ -552,6 +502,8 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 #print(f"Numero de grupo: {grupo}")
 
                 convenio_id = "4"
+                # Sólo se completa si el titular tiene cobertura y tipo_ben responde.
+                tipo_beneficiario = None
                 for index, row in df_selected.iterrows():
                     titular = row["Parentesco"]
                     if titular == "TITULAR":
@@ -574,32 +526,36 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 dni_aux = 0
 
                 if response_dniage.status_code == 200:
-                    data_dniage = response_dniage.json()
-
-                    dni_aux = data_dniage[0].get("doc_id") #DNI de agente de cuenta
-
+                    #DNI de agente de cuenta
+                    dni_aux = primer_valor(response_dniage.json(), "doc_id", 0)
+                    if not dni_aux:
+                        print("El grupo no tiene agente de cuenta.")
                 else:
                     print("No hay dni de agente de cuenta.")
 
                 hoy = datetime.today()
 
                 if dni_titular != 0:
-                    url_deuda = f"https://appmobile.nobissalud.com.ar/api/AgentesCuenta/Deuda/{dni_aux}"
-                    response_deuda = requests.get(url_deuda, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
-                    if response_deuda.status_code == 200:
-                        data_deuda = response_deuda.json()
-                        #print(f"Datos de deuda: {data_deuda}")
+                    if dni_aux:
+                        url_deuda = f"https://appmobile.nobissalud.com.ar/api/AgentesCuenta/Deuda/{dni_aux}"
+                        response_deuda = requests.get(url_deuda, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
+                        if response_deuda.status_code == 200:
+                            data_deuda = response_deuda.json()
+                            #print(f"Datos de deuda: {data_deuda}")
 
-                        #print(f"dni buscado: {dni_aux}")
-                        total_deuda = 0
-                        for deuda in data_deuda:
-                            fecvenc_dt = datetime.strptime(deuda.get("fecven"), "%d/%m/%Y")
-                            if fecvenc_dt < hoy:
-                                total_deuda += float(deuda.get("monto"))
-                            else:
-                                pass
-                        total_deuda = total_deuda if total_deuda > 0 else "Sin deuda"
+                            #print(f"dni buscado: {dni_aux}")
+                            total_deuda = 0
+                            for deuda in data_deuda:
+                                fecvenc_dt = datetime.strptime(deuda.get("fecven"), "%d/%m/%Y")
+                                if fecvenc_dt < hoy:
+                                    total_deuda += float(deuda.get("monto"))
+                                else:
+                                    pass
+                            total_deuda = total_deuda if total_deuda > 0 else "Sin deuda"
+                        else:
+                            total_deuda = "Sin dato"
                     else:
+                        # Sin agente de cuenta no hay a quien consultarle la deuda.
                         total_deuda = "Sin dato"
                     
                     # Forma de pago y Bonificacion/Recargo
@@ -674,7 +630,8 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                         "Parentesco": afiliado.get("parentesco"),
                         "Estado": afiliado.get("estadoBenef"),
                         "Deuda": total_deuda,
-                        "Patologias": []
+                        "Coberturas": [],
+                        "Semaforo": None
                     }
 
                     if 'con' in afiliado_info["Estado"].lower():
@@ -690,10 +647,9 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                             response_tipoben = requests.get(url_tipoben, headers=headers_interno, timeout=settings.REQUESTS_TIMEOUT)
 
                             if response_tipoben.status_code == 200:
-                                data_tipoben = response_tipoben.json()
                                 #print(nro_afi)
 
-                                tipo_beneficiario = data_tipoben[0].get("tipoBen_nom") #DNI de agente de cuenta
+                                tipo_beneficiario = primer_valor(response_tipoben.json(), "tipoBen_nom")
                                 #print(f"Tipo afi: {tipo_beneficiario}")
 
                                 if tipo_beneficiario:
@@ -749,29 +705,15 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
 
                             afiliado_info['Fecha_alta'] = fecha_formateada
 
+                            # Coberturas especiales: se resuelven contra el
+                            # catálogo por id_externo. Lo que no está queda en
+                            # gris con el nombre que mandó Gecros.
                             patologia = data_p[0].get('cobertura_especial')
                             patologias_id = data_p[0].get('id_cobertura_especial')
-                            
-                            if patologia != None:
-                                #print(f"Patologia: {patologia}")
-                                busqueda = buscar_cobertura(patologia)
-                                #print(f"Primera busqueda: {busqueda}")
-                                if busqueda == []:
-                                    #print(f"PB = [] -> Iniciando segunda busqueda por ID: {patologias_id}")
-                                    busqueda = buscar_preexistencias(patologias_id)
-                                    #print(f"Resultado de busqueda de preexistencias: {busqueda}")
-                                
-                                if busqueda == "No se encontraron coincidencias.":
-                                    afiliado_info['Patologias'] = []
-                                    afiliado_info['Cobertura_especial'] = patologia
-                                    #print("No se encontraron coincidencias de homologación. - Cobertura especial:", patologia)
-                                else:
-                                    afiliado_info['Patologias'] = busqueda
-                                    afiliado_info['Cobertura_especial'] = patologia
-                                    #print(f"Encontrado: {busqueda} - Cob: {patologia}")
-                            else:
-                                afiliado_info['Cobertura_especial'] = 'Sin cobertura especial'
-                                #print("SIN COBERTURA ESPECIAL")
+
+                            afiliado_info['Coberturas'] = resolver(patologias_id, patologia, indice_coberturas)
+                            afiliado_info['Semaforo'] = semaforo_grupo(afiliado_info['Coberturas'])
+                            afiliado_info['Cobertura_especial'] = patologia or 'Sin cobertura especial'
                         else:
                             print("Error. Fecha de alta no encontrada.")
 
@@ -861,7 +803,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 #print(resultados_combinados)
 
                 # Renderiza la plantilla con ambos conjuntos de datos
-                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo, "dni_titular": dni_titular})
+                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo, "dni_titular": dni_titular, "coberturas_periodo": coberturas_periodo, "coberturas_precios_vigentes": coberturas_precios_vigentes, "coberturas_iniciales": [i.get('Coberturas', []) for i in resultados_combinados]})
             
             else:
                 return render(request, self.template_name, {'error': 'No se encontraron datos para el DNI proporcionado.'}, status=404)
@@ -1934,3 +1876,18 @@ def evaluar_bonificacion_externa(request):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
 
+
+@requiere_permiso_json("accion.cotizar")
+def coberturas_catalogo(request):
+    """Catalogo de coberturas especiales para el buscador del modal.
+
+    Solo las activas: son las que el agente puede agregar. Las inactivas
+    igual llegan a la vista de retencion, porque Gecros puede tener cargada
+    una cobertura dada de baja y hay que mostrarla.
+    """
+    coberturas, periodo, precios_vigentes = obtener_catalogo()
+    return JsonResponse({
+        "periodo": periodo,
+        "precios_vigentes": precios_vigentes,
+        "coberturas": [c for c in coberturas if c["activo"]],
+    })

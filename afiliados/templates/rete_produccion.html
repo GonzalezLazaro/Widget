@@ -4,15 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
-    <!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
     {% load static %}
     <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
@@ -592,20 +583,101 @@
             margin-bottom: 5px;
         }
 
-        .select2-container .select2-selection--multiple {
-            flex-wrap: wrap; /* Permitir que las etiquetas bajen a la siguiente línea */
-            gap: 2px; /* Espacio entre las etiquetas */
-            max-height: 30px; /* Altura máxima para habilitar scroll */
-            overflow-y: auto; /* Scroll vertical */
-            overflow-x: hidden; /* Evitar desbordamiento horizontal */
+        /* Coberturas especiales: semáforo por cápita. */
+        .cob-semaforo {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .cob-rojo     { color: #c62828; }
+        .cob-amarillo { color: #f9a825; }
+        .cob-verde    { color: #2e7d32; }
+        .cob-gris     { color: #9e9e9e; }
+        .cob-nada     { color: #bdbdbd; font-weight: bold; }
+
+        /* La usa el botón de quitar del modal de detalle (Task 8). */
+        .cob-chip-x {
+            background: transparent;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            flex: 0 0 auto;
+            font-size: 10px;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .cob-chip-x:hover { color: #cc0000; }
+
+        .cob-aviso-precios {
+            background: #fff8e1;
+            border: 1px solid #f9a825;
+            border-radius: 4px;
+            color: #7a5c00;
+            font-size: 11px;
+            margin: 4px 0;
+            padding: 4px 8px;
+        }
+
+        /* ===== Modal de detalle de coberturas (encima del de cotización) ===== */
+        #coberturas-modal-overlay { z-index: 1050; }
+        #coberturas-modal {
+            z-index: 1100;
+            /* Tamano, padding y radio: en el bloque del final del <style>
+               (req 5), que lo clava a 350x270 border-box. */
+        }
+
+        .cob-item {
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 6px 0;
             text-align: left;
         }
 
-        .select2-container .select2-selection__choice {
-            white-space: nowrap; /* Evitar que el texto dentro de las etiquetas se corte */
-            overflow: hidden;
-            text-overflow: ellipsis; /* Mostrar puntos suspensivos si el texto es muy largo */
-            max-width: 50%; /* Asegurar que las etiquetas no desborden */
+        .cob-item-datos { flex: 1; min-width: 0; }
+        .cob-item-nombre { font-size: 12px; font-weight: 600; }
+        .cob-item-meta { color: #666; font-size: 11px; }
+        .cob-item-msg { color: #7a5c00; font-size: 10px; margin-top: 2px; }
+        .cob-item-valor { font-size: 12px; white-space: nowrap; }
+
+        .cob-badge-unico {
+            background: #e3f2fd;
+            border-radius: 3px;
+            color: #1565c0;
+            font-size: 9px;
+            padding: 1px 4px;
+        }
+
+        #cob-buscador {
+            box-sizing: border-box;
+            font-size: 12px;
+            margin-top: 8px;
+            padding: 5px;
+            width: 100%;
+        }
+
+        .cob-resultado {
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 2px;
+            text-align: left;
+        }
+
+        .cob-resultado:hover { background: #f5f5f5; }
+
+        .cob-subtotales {
+            border-top: 2px solid #ddd;
+            font-size: 12px;
+            margin-top: 8px;
+            padding-top: 6px;
+            text-align: right;
         }
 
         .td-eliminar {
@@ -696,6 +768,285 @@
                 font-size: 15px;
                 line-height: 20px;
             }
+        }
+        /* ====================================================================
+           Reqs 1-7: reglas nuevas, todas scopeadas por #cotizacion-table o
+           #coberturas-modal. Van al final a proposito: con igual especificidad
+           ganan por orden de fuente. NO se toca ninguna regla base compartida
+           (.modal, .cob-semaforo, .cob-subtotales, .cob-item-meta,
+           .cob-aviso-precios): las usan tambien los otros dos modales.
+           ==================================================================== */
+
+        /* ---------- Req 1: columna Edad angosta -------------------------- */
+        /* nth-child(2) porque las filas Django tienen 3 <td> y las de
+           agregarFila() 4: la 2da columna es Edad en las dos formas.
+           NADA de table-layout:fixed (el thead tiene 3 <th>).
+           max-width sobre celdas es indefinido en CSS 2.1 y los browsers lo
+           ignoran para display:table-cell, asi que el trabajo lo hacen
+           width + min-width:0 en el input + appearance + spinners ocultos. */
+        #cotizacion-table th:nth-child(2),
+        #cotizacion-table td:nth-child(2) {
+            width: 42px;
+            padding-left: 2px;
+            padding-right: 2px;
+        }
+        #cotizacion-table td:nth-child(2) input {
+            width: 100%;
+            min-width: 0;               /* sin esto manda el min-content del input */
+            padding: 2px 0;
+            text-align: center;
+            -moz-appearance: textfield;
+            appearance: textfield;      /* mata el spinner: vale ~14px de ancho */
+        }
+        #cotizacion-table td:nth-child(2) input::-webkit-outer-spin-button,
+        #cotizacion-table td:nth-child(2) input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        /* El encabezado fija el min-content de cada columna. Sin esto, bajo
+           @media (max-height:375px) la regla `table { font-size: 1em }` lo
+           agranda y se come el ancho de Parentesco. */
+        #cotizacion-table th {
+            font-size: 11px;
+            line-height: 1.15;
+            padding: 3px 2px;
+        }
+
+        /* ---------- Req 3: circulos grandes SOLO en la tabla ------------- */
+        /* Scopeado: .cob-semaforo la usan tambien los puntos del listado del
+           detalle y los del buscador, que el req 5 obliga a achicar. */
+        /* El <td> NO puede ser el contenedor flex: `display:flex` lo saca de
+           `table-cell` y con `border-collapse: collapse` la celda deja de
+           participar del modelo de bordes colapsados, asi que la columna se
+           queda sin bordes. El flex va en un wrapper interno. */
+        #cotizacion-table td.td-coberturas {
+            overflow: visible;          /* pisa el text-overflow:ellipsis de `td` */
+            padding: 2px 4px;
+            line-height: 1.1;
+        }
+        /* Fila: circulo a la izquierda, monto ocupando el resto. Al no
+           apilarse en dos lineas la celda baja de alto, y ese alto se
+           reinvierte en agrandar los dos. */
+        #cotizacion-table .cob-celda {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            overflow: visible;
+        }
+        /* Ancho propio: el circulo de 26px mas "$1.250.000*" no entran en los
+           82px del `td` global. La 3ra columna es la de patologias tanto en
+           las filas del template (3 celdas) como en las de agregarFila (4). */
+        #cotizacion-table th:nth-child(3),
+        #cotizacion-table td:nth-child(3) {
+            width: 96px;
+            max-width: 96px;
+        }
+        #cotizacion-table td.td-coberturas .cob-semaforo {
+            flex: 0 0 auto;
+            font-size: 26px;            /* 15px -> 22px -> 26px */
+            line-height: 1;
+            padding: 0;
+        }
+
+        /* ---------- Req 4: monto de la capita, a la derecha del circulo --- */
+        #cotizacion-table .cob-monto {
+            flex: 1 1 auto;
+            min-width: 0;
+            text-align: right;
+            font-size: 13px;            /* antes 10px */
+            line-height: 1.1;
+            font-weight: 600;
+            color: #1b5e20;
+            white-space: nowrap;
+            overflow: visible;
+        }
+        #cotizacion-table .cob-monto.cob-monto-cero {   /* sin patologias: no compite */
+            color: #9e9e9e;
+            font-weight: 400;
+        }
+        #cotizacion-table .cob-monto.cob-monto-sd {     /* precio desconocido */
+            color: #7a5c00;
+        }
+        /* Hay pago unico: el mensual solo no cuenta la historia completa.
+           Sin el ambar y el asterisco, una capita con un pago unico de
+           $1.250.000 se ve igual que una sin ninguna patologia. */
+        #cotizacion-table .cob-monto.cob-monto-unico {
+            color: #b26a00;
+            font-weight: 600;
+        }
+        /* La X de cerrar es position:absolute en top:10 right:10 y mide 25px,
+           o sea tapa el encabezado de la tabla, que arranca pegado al borde
+           del contenido. Se le reserva la franja de arriba. */
+        #secondary-modal-content {
+            padding-top: 26px;
+        }
+
+        /* La fila crece a ~37px: el boton de borrar de las filas dinamicas
+           esta en top:18% + translateY(-50%) y se iba arriba del borde. */
+        #cotizacion-table .td-eliminar .btn-eliminar { top: 50%; }
+
+        /* ---------- Req 5: el detalle nunca supera al de cotizacion ------ */
+        /* #secondary-modal NO tiene regla propia: hereda .modal, que es
+           content-box 350x270 + padding 10 => 370x290 PINTADOS.
+           Aca border-box 350x270 => 350x270 pintados: mas chico en los dos
+           ejes, y los numeros declarados son <= los de .modal en todos los
+           ejes. Si alguien toca .modal, hay que revisar estos numeros. */
+        #coberturas-modal {
+            box-sizing: border-box;
+            width: 350px;
+            height: 270px;
+            min-width: 0;
+            min-height: 0;
+            max-width: 350px;
+            max-height: 270px;
+            padding: 10px;
+            border-radius: 10px;
+            overflow: hidden;           /* el scroll se muda a la lista */
+        }
+        /* Wrapper interno en vez de display:flex en el modal: el JS abre con
+           style.display='block' (inline) y pisaria cualquier display del CSS. */
+        .cob-modal-cuerpo {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            text-align: left;
+        }
+
+        /* ---------- Reqs 2/6/7: header compacto -------------------------- */
+        .cob-modal-head {
+            flex: 0 0 auto;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 3px;
+            margin-bottom: 4px;
+        }
+        .cob-modal-head-fila {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding-right: 30px;        /* libera la X (25px @ right:10px) */
+        }
+        #coberturas-modal .cob-modal-head h3 {   /* pisa a `#coberturas-modal h3` */
+            font-size: 13px;
+            line-height: 1.25;
+            margin: 0;
+            font-weight: 700;
+            color: #1b1b1b;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .cob-pill-periodo {
+            margin-left: auto;
+            flex: 0 0 auto;
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 999px;
+            color: #1b5e20;
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1.3;
+            padding: 1px 6px;
+            white-space: nowrap;
+        }
+        .cob-pill-periodo.cob-pill-alerta {      /* precios NO vigentes: ambar */
+            background: #fff8e1;
+            border-color: #f9a825;
+            color: #7a5c00;
+        }
+        #cob-modal-subtitulo {
+            color: #555;
+            font-size: 11px;
+            font-weight: 600;
+            line-height: 1.2;
+            margin-top: 1px;
+            padding-right: 30px;        /* la X ocupa y=0..25: tambien tapa aca */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ---------- Req 5: la lista es el UNICO scroll ------------------- */
+        #cob-lista-capita {
+            flex: 1 1 auto;
+            min-height: 0;              /* OBLIGATORIO: sin esto el item no encoge */
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        #coberturas-modal .cob-semaforo { font-size: 12px; padding: 0 1px; }
+        #coberturas-modal .cob-item { align-items: center; gap: 5px; padding: 4px 0; }
+        #coberturas-modal .cob-item-nombre {
+            font-size: 11px;
+            line-height: 1.25;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;        /* 1 linea; el nombre completo va en title */
+        }
+        #coberturas-modal .cob-item-meta {
+            font-size: 9px;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #coberturas-modal .cob-item-msg   { font-size: 9px; line-height: 1.3; margin-top: 0; }
+        #coberturas-modal .cob-item-valor { font-size: 11px; font-weight: 600; }
+        #coberturas-modal .cob-badge-unico { font-size: 8px; margin-left: 4px; padding: 0 3px; }
+        /* Estado vacio: es hijo DIRECTO de la lista, los metas de los items no. */
+        #cob-lista-capita > .cob-item-meta {
+            font-size: 10px;
+            padding: 8px 0;
+            text-align: center;
+            white-space: normal;
+        }
+
+        /* ---------- Req 5: pie siempre visible --------------------------- */
+        /* position:relative aca (y no en .cob-buscador-wrap) para que el
+           popover de resultados arranque ARRIBA de la linea de subtotales
+           en vez de taparla. */
+        .cob-modal-foot { flex: 0 0 auto; position: relative; }
+        #coberturas-modal .cob-subtotales {      /* scopeado: no toca el de cotizacion */
+            border-top: 1px solid #ddd;
+            font-size: 11px;
+            line-height: 1.25;
+            margin-top: 4px;
+            padding-top: 3px;
+            text-align: right;
+        }
+        .cob-buscador-wrap { margin-top: 4px; }
+        #cob-buscador { font-size: 11px; margin-top: 0; padding: 3px 6px; }
+        /* Los resultados FLOTAN hacia arriba: fuera de flujo, no le roban alto
+           a la lista y el input nunca se va abajo del pliegue. */
+        #cob-resultados {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 100%;
+            margin-bottom: 3px;
+            max-height: 120px;
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.18);
+            z-index: 3;
+        }
+        #cob-resultados:empty { display: none; }
+        #coberturas-modal .cob-resultado { font-size: 11px; line-height: 1.25; padding: 3px 6px; }
+
+        /* ---------- Req 5 en viewport bajo (el iframe real) -------------- */
+        /* La regla de ID gana al .modal del @media de mas arriba, asi que hay
+           que replicarla o el detalle queda MAS GRANDE que la cotizacion justo
+           aca. height:80% (no auto) para que .cob-modal-cuerpo{height:100%}
+           tenga un alto del cual resolver. */
+        @media (max-height: 375px) {
+            #coberturas-modal {
+                width: 90%;
+                height: 80%;
+                max-width: 90%;
+                max-height: 80%;
+                padding: 8px;
+            }
+            #coberturas-modal #cob-resultados { max-height: 90px; }
         }
     </style>
 </head>
@@ -956,7 +1307,7 @@
         function agregarFila() {
             const tbody = document.querySelector("#secondary-modal tbody");
 
-            // Crear nueva fila con un select para parentesco y un select2 para patologías
+            // Crear nueva fila con un select para parentesco y la celda de coberturas
             const newRow = document.createElement("tr");
             newRow.innerHTML = `
                 <td>
@@ -971,8 +1322,12 @@
                 <td>
                     <input type="number" min="1" max="99" value="1" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)">
                 </td>
-                <td>
-                    <select class="mi-select" style="width: 100%;" name="patologias[]" multiple="multiple"></select>
+                <td class="td-coberturas">
+                    <div class="cob-celda">
+                        <button type="button" class="cob-semaforo cob-nada"
+                                onclick="abrirCoberturas(this)"
+                                title="Ver patologias">-</button>
+                    </div>
                 </td>
                 <td class="td-eliminar">
                     <button onclick="eliminarFila(this)" class="btn-eliminar">❌</button>
@@ -981,30 +1336,15 @@
 
             // Agregar la fila a la tabla
             tbody.appendChild(newRow);
-
-            // **Reinicializar select2** en el nuevo select
-            $(newRow).find(".mi-select").select2({
-                placeholder: "Selecciona una opción...",
-                allowClear: true,
-                ajax: {
-                    url: '/static/preexistencias.json',
-                    dataType: 'json',
-                    delay: 250,
-                    processResults: function (data) {
-                        return {
-                            results: data.map(item => ({
-                                id: item.ID,
-                                text: item.Patologia
-                            }))
-                        };
-                    }
-                }
-            });
+            const tdCob = newRow.querySelector('.td-coberturas');
+            tdCob._coberturas = [];
+            pintarSemaforo(tdCob);   // la fila nueva nace con semaforo y monto
         }
 
         function eliminarFila(button) {
             let row = button.parentNode.parentNode;
             row.parentNode.removeChild(row);
+            recalcularCoberturas();
         }
 
     </script>
@@ -1030,17 +1370,32 @@
                                     <button onclick="eliminarFila(this)" class="btn-eliminar-2">❌</button>
                                     {{ item.Parentesco }}</td>
                                 <td><input type="number" min="1" max="99" value="{{item.Edad }}" required oninput="this.value = Math.min(Math.max(this.value, 1), 99)"/></td>
-                                <td><select class="mi-select" style="width: 100%;" name="patologias[]" multiple="multiple">
-                                    {% for patologia in item.Patologias %}
-                                        <option value="{{ patologia.ID }}" selected>{{ patologia.Patologia }}</option>
-                                    {% endfor %}
-                                    </select>
+                                <td class="td-coberturas">
+                                    <div class="cob-celda">
+                                        <button type="button"
+                                                class="cob-semaforo cob-{{ item.Semaforo|default:'nada' }}"
+                                                onclick="abrirCoberturas(this)"
+                                                title="Ver patologias">{% if item.Semaforo %}●{% else %}-{% endif %}</button>
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
                 <button type="button" onclick="agregarFila()">➕ Agregar capita</button>
+                {% if coberturas_periodo and not coberturas_precios_vigentes %}
+                    <div class="cob-aviso-precios">
+                        Los precios del periodo próximo no están cargados.
+                        Se usan los de {{ coberturas_periodo }}.
+                    </div>
+                {% endif %}
+                <div class="cob-subtotales">
+                    Patologías (mensual): <strong id="cob-total-mensual">$0</strong><br>
+                    <span id="cob-fila-unico">
+                        Pagos únicos: <strong id="cob-total-unico">$0</strong>
+                        <span class="cob-item-meta">(no se suman a la cuota)</span>
+                    </span>
+                </div>
                 <div class="table_2">
                     <table>
                         <thead>
@@ -1294,6 +1649,35 @@
 
                 <button id="btn_cotizar" onclick="cotizar_actual()" class="cot_button2">Cotizar</button>
 
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de detalle de coberturas especiales -->
+    <div class="modal-overlay" id="coberturas-modal-overlay"></div>
+    <div class="modal" id="coberturas-modal">
+        <button class="close-button" onclick="cerrarCoberturas()">X</button>
+        <div class="cob-modal-cuerpo">
+            <div class="cob-modal-head">
+                <div class="cob-modal-head-fila">
+                    <h3 id="cob-modal-titulo">Patologias</h3>
+                    {% if coberturas_periodo %}
+                        <span class="cob-pill-periodo{% if not coberturas_precios_vigentes %} cob-pill-alerta{% endif %}"
+                              title="{% if coberturas_precios_vigentes %}Precios vigentes del periodo {{ coberturas_periodo }}{% else %}Los precios del periodo próximo no están cargados: se usan los de {{ coberturas_periodo }}{% endif %}">Precios de {{ coberturas_periodo }}</span>
+                    {% endif %}
+                </div>
+                <div id="cob-modal-subtitulo"></div>
+            </div>
+            <div id="cob-lista-capita"></div>
+            <div class="cob-modal-foot">
+                <div class="cob-subtotales">
+                    Mensual: <strong id="cob-sub-mensual">$0</strong><span id="cob-sub-unico-fila"> · Pago único: <strong id="cob-sub-unico">$0</strong></span>
+                </div>
+                <div class="cob-buscador-wrap">
+                    <input type="text" id="cob-buscador" placeholder="Buscar patologia para agregar..."
+                           oninput="buscarCoberturas()" autocomplete="off">
+                    <div id="cob-resultados"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -2218,15 +2602,13 @@
 
             // Modo escalonado: cotiza cada tramo por separado
             if (escalonadoOn) {
-                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: totalGrupal });
+                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: Math.round(totalesCoberturas().mensual) });
                 return;
             }
 
             const v1 = parseFloat(document.querySelector('#bonif_vigente')?.value) || 0;
             const v2 = parseFloat(document.querySelector('#bonif_manual')?.value) || 0;
             const bonificacion = Math.min(v1 + v2, 100); // suma Vigente + Manual, tope 100
-
-            //console.log(totalGrupal) // Valor de patologias en el grupo familiar
 
             // Obtener el valor de bonif_porc, que contiene el porcentaje y otro contenido
             const bonificacion_vigente = document.querySelector('#bonif_porc')?.textContent;
@@ -2259,7 +2641,8 @@
                 edades: edades,
                 aportes: aporte,
                 bonificaciones: bonificacion,
-                patologias: totalGrupal
+                // Sólo el mensual: las Agudas son pago único, no sobrecuota.
+                patologias: Math.round(totalesCoberturas().mensual)
             };
 
             //console.log(requestData)
@@ -2529,76 +2912,293 @@
 
     </script>
 
+    {{ coberturas_iniciales|json_script:"coberturas-iniciales" }}
     <script>
-        let totalGrupal = 0; // Variable global
-        let preexistenciasData = {}; // Variable para almacenar los datos de preexistencias
-
-        $(document).ready(function () {
-            // Cargar los datos de preexistencias.json
-            $.getJSON('/static/preexistencias.json', function(data) {
-                preexistenciasData = data.reduce((acc, item) => {
-                    acc[item.ID] = item.Costo_mensual;
-                    return acc;
-                }, {});
-                // console.log("Datos de preexistencias cargados:", preexistenciasData); // Depuración
-
-                // Inicializar select2 después de cargar los datos
-                $('.mi-select').select2({
-                    placeholder: "Selecciona una opción...",
-                    allowClear: true,
-                    ajax: {
-                        url: '/static/preexistencias.json',
-                        dataType: 'json',
-                        delay: 250,
-                        data: function (params) {
-                            return { search: params.term };
-                        },
-                        processResults: function (data, params) {
-                            var filteredData = data.filter(function (item) {
-                                return item.Patologia.toLowerCase().includes((params.term || '').toLowerCase());
-                            });
-                            return {
-                                results: filteredData.map(item => ({
-                                    id: item.ID,
-                                    text: item.Patologia,
-                                    costo_mensual: item.Costo_mensual
-                                }))
-                            };
-                        },
-                        error: function (jqXHR, textStatus, errorThrown) {
-                            console.error("Error al cargar el archivo JSON:", textStatus, errorThrown);
-                        }
-                    }
-                });
-
-                // Calcular el total grupal al cargar la página
-                calcularTotalGrupal();
-                actualizarPlanes(); // Asegura que los planes estén actualizados al abrir el modal
-
-                // Calcular el total grupal al seleccionar o deseleccionar opciones
-                $(document).on('select2:select select2:unselect', '.mi-select', function () {
-                    calcularTotalGrupal();
-                });
-            });
-
-            // Función para calcular el total grupal
-            function calcularTotalGrupal() {
-                totalGrupal = 0; // Reiniciar el total
-
-                // Iterar sobre todos los selects y sumar los costos seleccionados
-                $('.mi-select').each(function () {
-                    const selectedData = $(this).select2('data');
-                    // console.log("Datos seleccionados:", selectedData); // Depuración
-                    const costos = selectedData.map(option => preexistenciasData[option.id] || 0);
-                    totalGrupal += costos.reduce((acc, costo) => acc + costo, 0);
-                });
-
-                // Actualizar el total grupal en el pie de tabla
-                $('#total-grupal').text(totalGrupal.toFixed(2));
-                console.log("Costo mensual total:", totalGrupal);
-            }
+        // ===== Coberturas especiales =====
+        // El estado de cada cápita vive en td._coberturas: propiedad del nodo,
+        // no atributo. Sin escapado de JSON, y muere con la fila.
+        const ORDEN_SEMAFORO = { rojo: 0, amarillo: 1, verde: 2 };
+        const FMT_ARS = new Intl.NumberFormat('es-AR', {
+            style: 'currency', currency: 'ARS', minimumFractionDigits: 0
         });
 
+        function fmtARS(n) { return FMT_ARS.format(n || 0); }
+
+        // fmtARS devuelve "$ 1.234" (con NBSP). En la celda va compacto: "$1.234".
+        function fmtMonto(n) { return fmtARS(n).replace(/\s/g, ''); }
+
+        // Suma de UNA capita. Unica fuente de verdad: la usan el monto de la
+        // celda, los totales del pie y los subtotales del modal de detalle.
+        // sinCatalogo distingue "$0" (gratis) de "s/d" (precio desconocido).
+        function montoDeCapita(lista) {
+            const items = lista || [];
+            let mensual = 0, unico = 0, sinCatalogo = 0;
+            items.forEach(function (c) {
+                if (c.sin_catalogo) sinCatalogo++;
+                if (c.pago_unico) unico += c.valor || 0;
+                else mensual += c.valor || 0;
+            });
+            return {
+                mensual: mensual,
+                unico: unico,
+                total: items.length,
+                sinCatalogo: sinCatalogo
+            };
+        }
+
+        function celdasCoberturas() {
+            return document.querySelectorAll('#secondary-modal td.td-coberturas');
+        }
+
+        // Manda el peor de las que resolvieron. Las sin catálogo no participan:
+        // se ven al abrir el modal, que es donde el agente puede accionarlas.
+        function semaforoDe(lista) {
+            if (!lista || !lista.length) return null;
+            const resueltas = lista.filter(function (c) { return !c.sin_catalogo; });
+            if (!resueltas.length) return 'gris';
+            return resueltas.map(function (c) { return c.semaforo; })
+                .sort(function (a, b) { return ORDEN_SEMAFORO[a] - ORDEN_SEMAFORO[b]; })[0];
+        }
+
+        function pintarSemaforo(td) {
+            const lista = td._coberturas || [];
+            const color = semaforoDe(lista);
+            const btn = td.querySelector('.cob-semaforo');
+            if (!btn) return;
+            btn.className = 'cob-semaforo cob-' + (color || 'nada');
+            btn.textContent = color ? '●' : '-';
+            btn.title = lista.length
+                ? lista.length + ' patología(s) · peor: ' + color
+                : 'Sin patologías';
+
+            // Monto de la capita, a la derecha del circulo. Se crea on-demand:
+            // asi lo tienen tanto las filas del template como las de
+            // agregarFila(), sin duplicar markup. Va como HERMANO del boton
+            // dentro de .cob-celda, porque el btn.textContent de arriba
+            // borraria cualquier hijo. Fallback al td por si falta el wrapper.
+            const celda = td.querySelector('.cob-celda') || td;
+            let monto = celda.querySelector('.cob-monto');
+            if (!monto) {
+                monto = document.createElement('span');
+                monto.className = 'cob-monto';
+                celda.appendChild(monto);
+            }
+            const m = montoDeCapita(lista);
+            // Todas sin catalogo: el precio es DESCONOCIDO, no cero.
+            const sd = m.total > 0 && m.sinCatalogo === m.total;
+            // Solo el mensual: es lo que se cotiza (patologias en el POST).
+            // El asterisco marca que ademas hay un pago unico que NO se suma
+            // al mensual: sin el, "$0" no se distingue de "sin patologias".
+            const conUnico = !sd && m.unico > 0;
+            monto.textContent = sd ? 's/d' : fmtMonto(m.mensual) + (conUnico ? '*' : '');
+            monto.classList.toggle('cob-monto-sd', sd);
+            monto.classList.toggle('cob-monto-unico', conUnico);
+            monto.classList.toggle('cob-monto-cero', !sd && !conUnico && !m.mensual);
+            monto.title = sd
+                ? 'Sin datos en el catálogo de precios'
+                : (m.unico
+                    ? 'Mensual ' + fmtARS(m.mensual) + ' · pago único ' + fmtARS(m.unico)
+                    : 'Patologías (mensual)');
+        }
+
+        function totalesCoberturas() {
+            let mensual = 0, unico = 0;
+            celdasCoberturas().forEach(function (td) {
+                const m = montoDeCapita(td._coberturas);
+                mensual += m.mensual;
+                unico += m.unico;
+            });
+            return { mensual: mensual, unico: unico };
+        }
+
+        function recalcularCoberturas() {
+            celdasCoberturas().forEach(pintarSemaforo);
+            const t = totalesCoberturas();
+            const elMensual = document.getElementById('cob-total-mensual');
+            const elUnico = document.getElementById('cob-total-unico');
+            const filaUnico = document.getElementById('cob-fila-unico');
+            if (elMensual) elMensual.textContent = fmtARS(t.mensual);
+            if (elUnico) elUnico.textContent = fmtARS(t.unico);
+            if (filaUnico) filaUnico.style.display = t.unico ? '' : 'none';
+        }
+
+        // ===== Modal de detalle =====
+        let catalogoCoberturas = [];   // sólo activas: lo que se puede agregar
+        let capitaActual = null;       // el <td> cuya lista se está editando
+
+        function cargarCatalogoCoberturas() {
+            fetch('/widget/api/coberturas/')
+                .then(function (r) { return r.json(); })
+                .then(function (d) { catalogoCoberturas = d.coberturas || []; })
+                .catch(function () { catalogoCoberturas = []; });
+        }
+
+        function abrirCoberturas(btn) {
+            capitaActual = btn.closest('td');
+            const fila = capitaActual.closest('tr');
+            const select = fila.querySelector('.select-parentesco');
+            let quien;
+            if (select) {
+                quien = select.value || 'Nueva cápita';
+            } else {
+                // Clonar y sacar los botones: la celda trae el ❌ de borrar
+                // en el mismo <td> que el texto del parentesco.
+                const celda = fila.cells[0].cloneNode(true);
+                celda.querySelectorAll('button').forEach(function (b) { b.remove(); });
+                quien = celda.textContent.trim();
+            }
+            // El titulo queda FIJO en el HTML ("Patologias"); el parentesco
+            // va como subtitulo, en un nodo HERMANO del <h3> (si se anidara
+            // dentro, el textContent del h3 lo borraria).
+            const sub = document.getElementById('cob-modal-subtitulo');
+            if (sub) { sub.textContent = quien; sub.title = quien; }
+            document.getElementById('cob-buscador').value = '';
+            document.getElementById('cob-resultados').innerHTML = '';
+            renderCoberturasCapita();
+            document.getElementById('coberturas-modal').style.display = 'block';
+            document.getElementById('coberturas-modal-overlay').style.display = 'block';
+        }
+
+        function cerrarCoberturas() {
+            document.getElementById('coberturas-modal').style.display = 'none';
+            document.getElementById('coberturas-modal-overlay').style.display = 'none';
+            capitaActual = null;
+        }
+
+        function renderCoberturasCapita() {
+            const lista = (capitaActual && capitaActual._coberturas) || [];
+            const cont = document.getElementById('cob-lista-capita');
+            cont.innerHTML = '';
+            const tot = montoDeCapita(lista);
+
+            if (!lista.length) {
+                cont.innerHTML = '<div class="cob-item-meta">Sin patologías.</div>';
+            }
+
+            lista.forEach(function (c, i) {
+                const item = document.createElement('div');
+                item.className = 'cob-item';
+
+                const punto = document.createElement('span');
+                punto.className = 'cob-semaforo cob-' + c.semaforo;
+                punto.textContent = '●';
+                item.appendChild(punto);
+
+                const datos = document.createElement('div');
+                datos.className = 'cob-item-datos';
+
+                const nombre = document.createElement('div');
+                nombre.className = 'cob-item-nombre';
+                nombre.textContent = c.nombre;
+                nombre.title = c.nombre;      // ahora se recorta a 1 linea
+                datos.appendChild(nombre);
+
+                const meta = document.createElement('div');
+                meta.className = 'cob-item-meta';
+                meta.textContent = c.sin_catalogo
+                    ? 'Sin datos en el catálogo de precios'
+                    : (c.categoria || 'Sin categoría');
+
+                if (c.pago_unico) {
+                    const badge = document.createElement('span');
+                    badge.className = 'cob-badge-unico';
+                    badge.textContent = 'pago único';
+                    meta.appendChild(badge);   // en la MISMA linea del meta
+                }
+                datos.appendChild(meta);
+
+                if (c.mensaje) {
+                    const msg = document.createElement('div');
+                    msg.className = 'cob-item-msg';
+                    msg.textContent = c.mensaje;
+                    datos.appendChild(msg);
+                }
+
+                item.appendChild(datos);
+
+                const valor = document.createElement('span');
+                valor.className = 'cob-item-valor';
+                valor.textContent = fmtARS(c.valor);
+                item.appendChild(valor);
+
+                const quitar = document.createElement('button');
+                quitar.type = 'button';
+                quitar.className = 'cob-chip-x';
+                quitar.textContent = '✕';
+                quitar.title = 'Quitar';
+                quitar.onclick = function () { quitarCoberturaDeCapita(i); };
+                item.appendChild(quitar);
+
+                cont.appendChild(item);
+            });
+
+            document.getElementById('cob-sub-mensual').textContent = fmtARS(tot.mensual);
+            document.getElementById('cob-sub-unico').textContent = fmtARS(tot.unico);
+            document.getElementById('cob-sub-unico-fila').style.display = tot.unico ? '' : 'none';
+        }
+
+        function buscarCoberturas() {
+            const termino = document.getElementById('cob-buscador').value.trim().toLowerCase();
+            const cont = document.getElementById('cob-resultados');
+            cont.innerHTML = '';
+            if (termino.length < 2) return;
+
+            const yaTiene = ((capitaActual && capitaActual._coberturas) || [])
+                .map(function (c) { return c.id; });
+
+            catalogoCoberturas
+                .filter(function (c) {
+                    return c.nombre.toLowerCase().indexOf(termino) !== -1
+                        && yaTiene.indexOf(c.id) === -1;
+                })
+                .slice(0, 20)
+                .forEach(function (c) {
+                    const fila = document.createElement('div');
+                    fila.className = 'cob-resultado';
+                    const punto = document.createElement('span');
+                    punto.className = 'cob-semaforo cob-' + c.semaforo;
+                    punto.textContent = '●';
+                    fila.appendChild(punto);
+                    fila.appendChild(document.createTextNode(
+                        ' ' + c.nombre + '  ' + fmtARS(c.valor) + (c.pago_unico ? ' (único)' : '')
+                    ));
+                    fila.onclick = function () { agregarCobertura(c.id); };
+                    cont.appendChild(fila);
+                });
+        }
+
+        function agregarCobertura(id) {
+            const cob = catalogoCoberturas.find(function (c) { return c.id === id; });
+            if (!cob || !capitaActual) return;
+            capitaActual._coberturas = (capitaActual._coberturas || []).concat([
+                Object.assign({}, cob)
+            ]);
+            document.getElementById('cob-buscador').value = '';
+            document.getElementById('cob-resultados').innerHTML = '';
+            renderCoberturasCapita();
+            recalcularCoberturas();
+        }
+
+        function quitarCoberturaDeCapita(indice) {
+            if (!capitaActual) return;
+            const lista = (capitaActual._coberturas || []).slice();
+            lista.splice(indice, 1);
+            capitaActual._coberturas = lista;
+            renderCoberturasCapita();
+            recalcularCoberturas();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const bloque = document.getElementById('coberturas-iniciales');
+            const inicial = bloque ? JSON.parse(bloque.textContent) : [];
+            document.querySelectorAll('#cotizacion-table tbody tr').forEach(function (tr, i) {
+                const td = tr.querySelector('td.td-coberturas');
+                if (td) td._coberturas = inicial[i] || [];
+            });
+            cargarCatalogoCoberturas();
+            recalcularCoberturas();
+            actualizarPlanes();
+        });
     </script>
     {% if not widget_perms.cotizar %}<style>#Cotizar,#btn_cotizar{display:none!important}</style>{% endif %}
     {% if not widget_perms.enviar_bonificacion %}<style>.bonif-api-btn,.tramos-gecros-btn,#bonif_api_submit{display:none!important}</style>{% endif %}

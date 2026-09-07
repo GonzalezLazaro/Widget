@@ -1,14 +1,7 @@
 import requests
-import json
-import os
 from datetime import datetime
 
 from django.conf import settings  # REQUESTS_TIMEOUT: timeout único para HTTP saliente
-
-# Calcula la ruta relativa a partir de utils.py
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-json_path = os.path.join(base_dir, 'home', 'static', 'preexistencias.json')
-homologacion_path = os.path.join(base_dir, 'home', 'static', 'homologacion.xlsx')
 
 def actualizar_token_wise():
     """Obtiene un nuevo token desde la API y lo guarda."""
@@ -68,74 +61,20 @@ def actualizar_token_gecros():
     except requests.exceptions.RequestException as e:
         print(f"Error al obtener el token: {e}")
         return None
-    
-
-def actualizar_preexistencias():
-    url = "https://cotizador.nobis.com.ar/api/preex"
-    headers = {
-        "Content-Type": "application/json",
-        'Authorization': 'Bearer 496ae7b9-0787-482e-bbe2-235279237940'
-    }
-
-    try:
-        response = requests.get(url, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
-        response.raise_for_status()
-        response_json = response.json()
-
-        if response_json:
-            # Obtén la clave dinámica
-            dynamic_key = next(iter(response_json.keys()))
-            data_to_save = response_json[dynamic_key]
-
-            # Guarda los datos en un archivo JSON
-            with open(json_path, 'w', encoding='utf-8') as json_file:
-                json.dump(data_to_save, json_file, ensure_ascii=False, indent=4)
-
-            print("Datos guardados en 'preexistencias.json'")
-        else:
-            # 200 con cuerpo vacío: se conserva el archivo local en lugar de pisarlo.
-            print("No hay datos de preexistencias. Se conserva el archivo local.")
-            return None
-
-    except (requests.exceptions.RequestException, ValueError, OSError) as e:
-        print(f"Error al renovar preexistencias: {e}")
-        return None
-
-import unicodedata
-# Función para normalizar texto (remover acentos)
-def normalizar_texto(texto):
-    texto = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode("utf-8")
-    return texto
 
 
-# Función para buscar coincidencias parciales en el archivo JSON
-def buscar_cobertura(coberturas):
-    with open(json_path, "r", encoding="utf-8") as file:
-        preexistencias = json.load(file)
+def primer_valor(payload, campo, default=None):
+    """Primer registro de una respuesta JSON tipo lista -> `campo`.
 
-    resultados = []
-    lista_coberturas = [c.strip().upper() for c in coberturas.split(",")]
-
-    for cobertura in lista_coberturas:
-        for registro in preexistencias:
-            #print(registro["Patologia"])
-            patologia_value = registro["Patologia"]
-
-            # Verificar si el valor es válido
-            if pd.isna(patologia_value) or patologia_value == "" or str(patologia_value).strip() == "":
-                continue
-            else:
-                patologia = str(patologia_value).upper()
-                patologia = normalizar_texto(patologia)
-
-            # Limpieza de la cobertura buscada
-            cobertura_limpia = normalizar_texto(cobertura.replace("  ", "").replace(" B", "").replace("FALSEO","").replace("- ","").replace("-","").replace("NO USAR","").replace("_",""))
-
-            if cobertura_limpia in patologia:
-                #print(f"Coincidencia para '{cobertura}':", registro)
-                resultados.append(registro)
-
-    return resultados
+    Varias APIs internas (dni_agecta, tipo_ben) responden 200 con `[]`
+    cuando no hay datos, así que mirar sólo el status_code no alcanza:
+    hay que mirar el cuerpo.
+    """
+    if isinstance(payload, list) and payload and isinstance(payload[0], dict):
+        valor = payload[0].get(campo)
+        if valor is not None:
+            return valor
+    return default
 
 
 # Filtrar condición del grupo familiar
@@ -161,40 +100,24 @@ def condicion_grupal(convenio):
     return "1"
 
 
-import pandas as pd
+# Coberturas especiales: el dato viene crudo de Gecros, sin catálogo local.
+def parsear_coberturas(ids_gecros, nombres=None):
+    """Convierte los campos crudos de Gecros en una lista de coberturas.
 
+    `id_cobertura_especial` y `cobertura_especial` llegan como strings
+    separados por coma. Se asume correspondencia posicional; si las
+    longitudes no coinciden, se etiqueta cada cobertura sólo con el ID para
+    no mostrar un nombre que no corresponde.
+    """
+    ids = [i.strip() for i in (ids_gecros or "").split(",") if i.strip().isdigit()]
+    if not ids:
+        return []
 
-def buscar_preexistencias(ids_gecros):
-    # Cargar el archivo de homologación
-    df_homologacion = pd.read_excel(homologacion_path)
-    
-    # Convertir la entrada de IDs de Gecros en una lista
-    lista_ids_gecros = [int(id.strip()) for id in ids_gecros.split(",") if id.strip().isdigit()]
+    etiquetas = [n.strip() for n in (nombres or "").split(",") if n.strip()]
+    if len(etiquetas) != len(ids):
+        etiquetas = [f"ID {i}" for i in ids]
 
-    # Cargar el archivo JSON de preexistencias
-    with open(json_path, "r", encoding="utf-8") as f:
-        preexistencias = json.load(f)
-
-    resultados = []
-
-    for id_gecros in lista_ids_gecros:
-        # Filtrar las filas que coinciden con el ID de Gecros
-        filas = df_homologacion[df_homologacion.iloc[:, 0] == id_gecros]
-
-        if filas.empty:
-            continue  # Si no hay coincidencia, pasa al siguiente ID de Gecros
-        
-        for _, fila in filas.iterrows():
-            # Obtener los IDs de cobertura especial y dividirlos en una lista
-            ids_preexistencias = str(fila.iloc[2]).split(",")  # Asume que la 3ra columna contiene los IDs separados por coma
-            ids_preexistencias = [int(id.strip()) for id in ids_preexistencias if id.strip().isdigit()]  # Limpiar y convertir
-
-            # Buscar coincidencias en el JSON
-            coincidencias = [p for p in preexistencias if p["ID"] in ids_preexistencias]
-
-            resultados.extend(coincidencias)  # Agregar los resultados encontrados
-
-    return resultados if resultados else "No se encontraron coincidencias."
+    return [{"id": int(i), "nombre": n} for i, n in zip(ids, etiquetas)]
 
 
 def obtener_expedientes_grupo_familiar(ben_ids, token_gecros, benid_to_dni, benid_to_nombre):
@@ -219,5 +142,3 @@ def obtener_expedientes_grupo_familiar(ben_ids, token_gecros, benid_to_dni, beni
             )
             expedientes.extend(data[:10])
     return expedientes
-
-
