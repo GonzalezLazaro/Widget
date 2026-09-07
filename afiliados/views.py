@@ -4,8 +4,8 @@ from datetime import datetime
 import requests
 import json
 from pandas import json_normalize
-from .utils import actualizar_token_wise, actualizar_token_gecros, condicion_grupal, primer_valor, parsear_coberturas, obtener_expedientes_grupo_familiar
-from .coberturas import obtener_catalogo
+from .utils import actualizar_token_wise, actualizar_token_gecros, condicion_grupal, primer_valor, obtener_expedientes_grupo_familiar
+from .coberturas import indice_por_id_externo, obtener_catalogo, resolver, semaforo_grupo
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -485,6 +485,12 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 df_selected = df_afiliado[["nombre", "nroAfi", "parentesco", "estadoBenef", "benGrId", "convenio.value"]]
                 df_selected.columns = ["Nombre", "DNI", "Parentesco", "Estado", "Grupo", "Condicion"]
 
+                # Catálogo de coberturas especiales: una sola consulta para todo
+                # el grupo. Si está caído el índice queda vacío, todas las
+                # coberturas se muestran en gris y la vista carga igual.
+                catalogo, coberturas_periodo, coberturas_precios_vigentes = obtener_catalogo()
+                indice_coberturas = indice_por_id_externo(catalogo)
+
                 # Crear lista de resultados combinados
                 resultados_combinados = []
 
@@ -624,7 +630,8 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                         "Parentesco": afiliado.get("parentesco"),
                         "Estado": afiliado.get("estadoBenef"),
                         "Deuda": total_deuda,
-                        "Coberturas": []
+                        "Coberturas": [],
+                        "Semaforo": None
                     }
 
                     if 'con' in afiliado_info["Estado"].lower():
@@ -698,12 +705,14 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
 
                             afiliado_info['Fecha_alta'] = fecha_formateada
 
-                            # Coberturas especiales: se conserva el ID de Gecros tal cual.
-                            # El valor monetario lo resuelve la nueva API.
+                            # Coberturas especiales: se resuelven contra el
+                            # catálogo por id_externo. Lo que no está queda en
+                            # gris con el nombre que mandó Gecros.
                             patologia = data_p[0].get('cobertura_especial')
                             patologias_id = data_p[0].get('id_cobertura_especial')
 
-                            afiliado_info['Coberturas'] = parsear_coberturas(patologias_id, patologia)
+                            afiliado_info['Coberturas'] = resolver(patologias_id, patologia, indice_coberturas)
+                            afiliado_info['Semaforo'] = semaforo_grupo(afiliado_info['Coberturas'])
                             afiliado_info['Cobertura_especial'] = patologia or 'Sin cobertura especial'
                         else:
                             print("Error. Fecha de alta no encontrada.")
@@ -794,7 +803,7 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 #print(resultados_combinados)
 
                 # Renderiza la plantilla con ambos conjuntos de datos
-                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo, "dni_titular": dni_titular})
+                return render(request, self.template_name, {'data': resultados_combinados, 'data_aportes': all_aportes, 'data_fpago': forma_de_pago_bonif, "convenio_id": convenio_id, "convenio_nom":condicion_inicial, "tipo_nom":tipo_beneficiario, "grupo": grupo, "dni_titular": dni_titular, "coberturas_periodo": coberturas_periodo, "coberturas_precios_vigentes": coberturas_precios_vigentes, "coberturas_iniciales": [i.get('Coberturas', []) for i in resultados_combinados]})
             
             else:
                 return render(request, self.template_name, {'error': 'No se encontraron datos para el DNI proporcionado.'}, status=404)
