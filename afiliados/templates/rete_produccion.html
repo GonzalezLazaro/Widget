@@ -1112,7 +1112,7 @@
                     </tbody>
                 </table>
                 <button type="button" onclick="agregarFila()">➕ Agregar capita</button>
-                {% if not coberturas_precios_vigentes %}
+                {% if coberturas_periodo and not coberturas_precios_vigentes %}
                     <div class="cob-aviso-precios">
                         Los precios del periodo próximo no están cargados.
                         Se usan los de {{ coberturas_periodo }}.
@@ -1387,7 +1387,7 @@
     <div class="modal" id="coberturas-modal">
         <button class="close-button" onclick="cerrarCoberturas()">X</button>
         <h3 id="cob-modal-titulo">Coberturas</h3>
-        {% if not coberturas_precios_vigentes %}
+        {% if coberturas_periodo and not coberturas_precios_vigentes %}
             <div class="cob-aviso-precios">
                 Los precios del periodo próximo no están cargados.
                 Se usan los de {{ coberturas_periodo }}.
@@ -2323,7 +2323,7 @@
 
             // Modo escalonado: cotiza cada tramo por separado
             if (escalonadoOn) {
-                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: totalesCoberturas().mensual });
+                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: Math.round(totalesCoberturas().mensual) });
                 return;
             }
 
@@ -2363,7 +2363,7 @@
                 aportes: aporte,
                 bonificaciones: bonificacion,
                 // Sólo el mensual: las Agudas son pago único, no sobrecuota.
-                patologias: totalesCoberturas().mensual
+                patologias: Math.round(totalesCoberturas().mensual)
             };
 
             //console.log(requestData)
@@ -2667,7 +2667,7 @@
             btn.className = 'cob-semaforo cob-' + (color || 'nada');
             btn.textContent = color ? '●' : '-';
             btn.title = lista.length
-                ? lista.length + ' cobertura(s) especial(es)'
+                ? lista.length + ' cobertura(s) especial(es) · peor: ' + color
                 : 'Sin cobertura especial';
         }
 
@@ -2708,9 +2708,16 @@
             capitaActual = btn.closest('td');
             const fila = capitaActual.closest('tr');
             const select = fila.querySelector('.select-parentesco');
-            const quien = select
-                ? (select.value || 'Nueva cápita')
-                : fila.cells[0].textContent.trim();
+            let quien;
+            if (select) {
+                quien = select.value || 'Nueva cápita';
+            } else {
+                // Clonar y sacar los botones: la celda trae el ❌ de borrar
+                // en el mismo <td> que el texto del parentesco.
+                const celda = fila.cells[0].cloneNode(true);
+                celda.querySelectorAll('button').forEach(function (b) { b.remove(); });
+                quien = celda.textContent.trim();
+            }
             document.getElementById('cob-modal-titulo').textContent = 'Coberturas — ' + quien;
             document.getElementById('cob-buscador').value = '';
             document.getElementById('cob-resultados').innerHTML = '';
@@ -2853,7 +2860,7 @@
         document.addEventListener('DOMContentLoaded', function () {
             const bloque = document.getElementById('coberturas-iniciales');
             const inicial = bloque ? JSON.parse(bloque.textContent) : [];
-            document.querySelectorAll('#secondary-modal tbody tr').forEach(function (tr, i) {
+            document.querySelectorAll('#cotizacion-table tbody tr').forEach(function (tr, i) {
                 const td = tr.querySelector('td.td-coberturas');
                 if (td) td._coberturas = inicial[i] || [];
             });
