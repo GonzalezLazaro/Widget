@@ -27,3 +27,57 @@ def periodo_anterior(periodo):
     if mes < 1:
         anio, mes = anio - 1, 12
     return f"{anio}{mes:02d}"
+
+
+# De peor a mejor: el semáforo de una cápita es el peor de sus coberturas.
+ORDEN_SEMAFORO = {"rojo": 0, "amarillo": 1, "verde": 2}
+
+
+def semaforo(cob):
+    """Color de una cobertura. Se deriva de los booleanos, no de categoria_nombre.
+
+    Verificado contra el catálogo: los booleanos y `categoria_nombre` coinciden
+    exacto (Roja=41, Amarilla=28, Verde+Aguda=45), pero los booleanos son la
+    fuente semántica y no dependen de un string.
+    """
+    if not cob.get("permite_ingreso"):
+        return "rojo"
+    if cob.get("requiere_empresa_cliente"):
+        return "amarillo"
+    return "verde"
+
+
+def es_pago_unico(cob):
+    """Las "Aguda" se pagan una vez: no son sobrecuota mensual."""
+    return cob.get("id_categoria") == ID_CATEGORIA_AGUDA
+
+
+def normalizar(cob):
+    """Registro crudo del catálogo -> el shape que consumen vista, template y JS."""
+    return {
+        "id": cob.get("id_externo"),
+        "nombre": cob.get("cbtNombre") or "",
+        "categoria": cob.get("categoria_nombre") or "",
+        "semaforo": semaforo(cob),
+        "valor": cob.get("valor_actual") or 0,
+        "pago_unico": es_pago_unico(cob),
+        "mensaje": cob.get("mensaje_rechazo") or "",
+        "activo": cob.get("cbtActivo") == 1,
+        "sin_catalogo": False,
+    }
+
+
+def semaforo_grupo(coberturas):
+    """Peor semáforo de una cápita.
+
+    Las que no resolvieron contra el catálogo no participan del cálculo: se ven
+    al abrir el modal, que es donde el agente puede accionarlas. Devuelve
+    'gris' sólo si ninguna resolvió, y None si la cápita no tiene ninguna.
+    """
+    if not coberturas:
+        return None
+    resueltas = [c for c in coberturas if not c.get("sin_catalogo")]
+    if not resueltas:
+        return "gris"
+    return min((c["semaforo"] for c in resueltas),
+               key=lambda s: ORDEN_SEMAFORO.get(s, 99))
