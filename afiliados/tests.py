@@ -3,7 +3,7 @@ from unittest.mock import patch, Mock
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
 
-from afiliados.utils import extraer_doc_id
+from afiliados.utils import primer_valor
 from afiliados.views import BuscarRetencionView
 
 
@@ -40,18 +40,25 @@ class ObtenerPreexTests(TestCase):
         self.assertIsNone(cache.get('verificacion_diaria_preex'))
 
 
-class ExtraerDocIdTests(SimpleTestCase):
-    """dni_agecta responde 200 con `[]` si el grupo no tiene agente de cuenta."""
+class PrimerValorTests(SimpleTestCase):
+    """Varias APIs internas responden 200 con `[]` cuando no hay datos."""
 
     def test_lista_vacia_no_rompe(self):
-        """El caso que tiraba IndexError: 200 con cuerpo vacío."""
-        self.assertEqual(extraer_doc_id([]), 0)
+        """El caso que tiraba IndexError en dni_agecta y acechaba en tipo_ben."""
+        self.assertIsNone(primer_valor([], "doc_id"))
+        self.assertEqual(primer_valor([], "doc_id", 0), 0)
 
-    def test_devuelve_el_doc_id(self):
-        self.assertEqual(extraer_doc_id([{"doc_id": 30111222}]), 30111222)
+    def test_devuelve_el_campo(self):
+        self.assertEqual(primer_valor([{"doc_id": 30111222}], "doc_id"), 30111222)
 
-    def test_payload_inesperado_cae_a_cero(self):
-        for payload in (None, {}, "", [None], [{}], [{"doc_id": None}]):
+    def test_toma_el_primer_registro(self):
+        self.assertEqual(primer_valor([{"a": 1}, {"a": 2}], "a"), 1)
+
+    def test_campo_ausente_o_nulo_cae_al_default(self):
+        self.assertEqual(primer_valor([{"otro": 1}], "doc_id", 0), 0)
+        self.assertEqual(primer_valor([{"doc_id": None}], "doc_id", 0), 0)
+
+    def test_payload_inesperado_cae_al_default(self):
+        for payload in (None, {}, "", [None], [{}], ["x"], 42):
             with self.subTest(payload=payload):
-                self.assertEqual(extraer_doc_id(payload), 0)
-
+                self.assertEqual(primer_valor(payload, "doc_id", 0), 0)

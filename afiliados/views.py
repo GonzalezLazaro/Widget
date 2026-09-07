@@ -4,7 +4,7 @@ from datetime import datetime
 import requests
 import json
 from pandas import json_normalize
-from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, extraer_doc_id, buscar_preexistencias, obtener_expedientes_grupo_familiar
+from .utils import actualizar_token_wise, actualizar_token_gecros, actualizar_preexistencias, buscar_cobertura, condicion_grupal, primer_valor, buscar_preexistencias, obtener_expedientes_grupo_familiar
 from django.core.cache import cache
 import pytz
 from dateutil.relativedelta import relativedelta
@@ -552,6 +552,8 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 #print(f"Numero de grupo: {grupo}")
 
                 convenio_id = "4"
+                # Sólo se completa si el titular tiene cobertura y tipo_ben responde.
+                tipo_beneficiario = None
                 for index, row in df_selected.iterrows():
                     titular = row["Parentesco"]
                     if titular == "TITULAR":
@@ -574,7 +576,8 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 dni_aux = 0
 
                 if response_dniage.status_code == 200:
-                    dni_aux = extraer_doc_id(response_dniage.json()) #DNI de agente de cuenta
+                    #DNI de agente de cuenta
+                    dni_aux = primer_valor(response_dniage.json(), "doc_id", 0)
                     if not dni_aux:
                         print("El grupo no tiene agente de cuenta.")
                 else:
@@ -583,22 +586,26 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                 hoy = datetime.today()
 
                 if dni_titular != 0:
-                    url_deuda = f"https://appmobile.nobissalud.com.ar/api/AgentesCuenta/Deuda/{dni_aux}"
-                    response_deuda = requests.get(url_deuda, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
-                    if response_deuda.status_code == 200:
-                        data_deuda = response_deuda.json()
-                        #print(f"Datos de deuda: {data_deuda}")
+                    if dni_aux:
+                        url_deuda = f"https://appmobile.nobissalud.com.ar/api/AgentesCuenta/Deuda/{dni_aux}"
+                        response_deuda = requests.get(url_deuda, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
+                        if response_deuda.status_code == 200:
+                            data_deuda = response_deuda.json()
+                            #print(f"Datos de deuda: {data_deuda}")
 
-                        #print(f"dni buscado: {dni_aux}")
-                        total_deuda = 0
-                        for deuda in data_deuda:
-                            fecvenc_dt = datetime.strptime(deuda.get("fecven"), "%d/%m/%Y")
-                            if fecvenc_dt < hoy:
-                                total_deuda += float(deuda.get("monto"))
-                            else:
-                                pass
-                        total_deuda = total_deuda if total_deuda > 0 else "Sin deuda"
+                            #print(f"dni buscado: {dni_aux}")
+                            total_deuda = 0
+                            for deuda in data_deuda:
+                                fecvenc_dt = datetime.strptime(deuda.get("fecven"), "%d/%m/%Y")
+                                if fecvenc_dt < hoy:
+                                    total_deuda += float(deuda.get("monto"))
+                                else:
+                                    pass
+                            total_deuda = total_deuda if total_deuda > 0 else "Sin deuda"
+                        else:
+                            total_deuda = "Sin dato"
                     else:
+                        # Sin agente de cuenta no hay a quien consultarle la deuda.
                         total_deuda = "Sin dato"
                     
                     # Forma de pago y Bonificacion/Recargo
@@ -689,10 +696,9 @@ class BuscarRetencionView(ManejoErroresAPIMixin, View):
                             response_tipoben = requests.get(url_tipoben, headers=headers_interno, timeout=settings.REQUESTS_TIMEOUT)
 
                             if response_tipoben.status_code == 200:
-                                data_tipoben = response_tipoben.json()
                                 #print(nro_afi)
 
-                                tipo_beneficiario = data_tipoben[0].get("tipoBen_nom") #DNI de agente de cuenta
+                                tipo_beneficiario = primer_valor(response_tipoben.json(), "tipoBen_nom")
                                 #print(f"Tipo afi: {tipo_beneficiario}")
 
                                 if tipo_beneficiario:
