@@ -1,10 +1,6 @@
 from datetime import date
 
-
-
 from django.test import SimpleTestCase
-
-
 
 from afiliados.coberturas import (
     es_pago_unico,
@@ -15,39 +11,20 @@ from afiliados.coberturas import (
     semaforo_grupo,
 )
 
-
-
-
-
 class PeriodoTests(SimpleTestCase):
-
     """El cotizador pide siempre el periodo siguiente al actual."""
 
-
-
     def test_periodo_proximo(self):
-
         self.assertEqual(periodo_proximo(date(2026, 9, 7)), "202610")
 
-
-
     def test_periodo_proximo_cruza_anio(self):
-
         self.assertEqual(periodo_proximo(date(2026, 12, 15)), "202701")
 
-
-
     def test_periodo_anterior(self):
-
         self.assertEqual(periodo_anterior("202610"), "202609")
 
-
-
     def test_periodo_anterior_cruza_anio(self):
-
         self.assertEqual(periodo_anterior("202601"), "202512")
-
-
 
 def cob(**kwargs):
     """Registro del catálogo con valores por defecto benignos."""
@@ -58,7 +35,6 @@ def cob(**kwargs):
     }
     base.update(kwargs)
     return base
-
 
 class SemaforoTests(SimpleTestCase):
     """Se deriva de los booleanos, no del string de categoria_nombre."""
@@ -76,7 +52,6 @@ class SemaforoTests(SimpleTestCase):
     def test_verde_por_defecto(self):
         self.assertEqual(semaforo(cob()), "verde")
 
-
 class PagoUnicoTests(SimpleTestCase):
     def test_aguda_es_pago_unico(self):
         self.assertTrue(es_pago_unico(cob(id_categoria=4, categoria_nombre="Aguda")))
@@ -85,7 +60,6 @@ class PagoUnicoTests(SimpleTestCase):
         for categoria in (None, 1, 2, 3):
             with self.subTest(categoria=categoria):
                 self.assertFalse(es_pago_unico(cob(id_categoria=categoria)))
-
 
 class NormalizarTests(SimpleTestCase):
     def test_shape(self):
@@ -103,7 +77,6 @@ class NormalizarTests(SimpleTestCase):
 
     def test_inactivo(self):
         self.assertFalse(normalizar(cob(cbtActivo=0))["activo"])
-
 
 class SemaforoGrupoTests(SimpleTestCase):
     """Manda el peor de las coberturas que sí resolvieron."""
