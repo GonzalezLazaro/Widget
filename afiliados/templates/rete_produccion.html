@@ -631,11 +631,6 @@
                (req 5), que lo clava a 350x270 border-box. */
         }
 
-        #coberturas-modal h3 {
-            font-size: 14px;
-            margin: 0 0 8px;
-        }
-
         .cob-item {
             border-bottom: 1px solid #eee;
             display: flex;
@@ -849,6 +844,13 @@
         }
         #cotizacion-table .cob-monto.cob-monto-sd {     /* precio desconocido */
             color: #7a5c00;
+        }
+        /* Hay pago unico: el mensual solo no cuenta la historia completa.
+           Sin el ambar y el asterisco, una capita con un pago unico de
+           $1.250.000 se ve igual que una sin ninguna patologia. */
+        #cotizacion-table .cob-monto.cob-monto-unico {
+            color: #b26a00;
+            font-weight: 600;
         }
         /* La fila crece a ~37px: el boton de borrar de las filas dinamicas
            esta en top:18% + translateY(-50%) y se iba arriba del borde. */
@@ -1355,7 +1357,7 @@
                     </div>
                 {% endif %}
                 <div class="cob-subtotales">
-                    Coberturas especiales (mensual): <strong id="cob-total-mensual">$0</strong><br>
+                    Patologías (mensual): <strong id="cob-total-mensual">$0</strong><br>
                     <span id="cob-fila-unico">
                         Pagos únicos: <strong id="cob-total-unico">$0</strong>
                         <span class="cob-item-meta">(no se suman a la cuota)</span>
@@ -2950,9 +2952,13 @@
             // Todas sin catalogo: el precio es DESCONOCIDO, no cero.
             const sd = m.total > 0 && m.sinCatalogo === m.total;
             // Solo el mensual: es lo que se cotiza (patologias en el POST).
-            monto.textContent = sd ? 's/d' : fmtMonto(m.mensual);
+            // El asterisco marca que ademas hay un pago unico que NO se suma
+            // al mensual: sin el, "$0" no se distingue de "sin patologias".
+            const conUnico = !sd && m.unico > 0;
+            monto.textContent = sd ? 's/d' : fmtMonto(m.mensual) + (conUnico ? '*' : '');
             monto.classList.toggle('cob-monto-sd', sd);
-            monto.classList.toggle('cob-monto-cero', !sd && !m.mensual);
+            monto.classList.toggle('cob-monto-unico', conUnico);
+            monto.classList.toggle('cob-monto-cero', !sd && !conUnico && !m.mensual);
             monto.title = sd
                 ? 'Sin datos en el catálogo de precios'
                 : (m.unico
@@ -3031,7 +3037,7 @@
             const tot = montoDeCapita(lista);
 
             if (!lista.length) {
-                cont.innerHTML = '<div class="cob-item-meta">Sin coberturas especiales.</div>';
+                cont.innerHTML = '<div class="cob-item-meta">Sin patologías.</div>';
             }
 
             lista.forEach(function (c, i) {
