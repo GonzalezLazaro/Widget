@@ -1112,6 +1112,19 @@
                     </tbody>
                 </table>
                 <button type="button" onclick="agregarFila()">➕ Agregar capita</button>
+                {% if not coberturas_precios_vigentes %}
+                    <div class="cob-aviso-precios">
+                        Los precios del periodo próximo no están cargados.
+                        Se usan los de {{ coberturas_periodo }}.
+                    </div>
+                {% endif %}
+                <div class="cob-subtotales">
+                    Coberturas especiales (mensual): <strong id="cob-total-mensual">$0</strong><br>
+                    <span id="cob-fila-unico">
+                        Pagos únicos: <strong id="cob-total-unico">$0</strong>
+                        <span class="cob-item-meta">(no se suman a la cuota)</span>
+                    </span>
+                </div>
                 <div class="table_2">
                     <table>
                         <thead>
@@ -2310,8 +2323,7 @@
 
             // Modo escalonado: cotiza cada tramo por separado
             if (escalonadoOn) {
-                // TODO: valor de coberturas especiales — pendiente nueva API
-                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: 0 });
+                cotizarEscalonado({ plan: plan, gestion: gestion, ubicacion: ubicacion, edades: edades, aportes: aporte, patologias: totalesCoberturas().mensual });
                 return;
             }
 
@@ -2350,7 +2362,8 @@
                 edades: edades,
                 aportes: aporte,
                 bonificaciones: bonificacion,
-                patologias: 0 // TODO: valor de coberturas especiales — pendiente nueva API
+                // Sólo el mensual: las Agudas son pago único, no sobrecuota.
+                patologias: totalesCoberturas().mensual
             };
 
             //console.log(requestData)
