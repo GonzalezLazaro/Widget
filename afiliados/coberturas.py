@@ -124,6 +124,17 @@ def resolver(ids_gecros, nombres, indice):
 CACHE_KEY_CATALOGO = "coberturas_catalogo"
 TTL_VIGENTE = 6 * 3600      # precios del periodo próximo ya cargados
 TTL_FALLBACK = 15 * 60      # se está usando un periodo viejo: reintentar pronto
+TTL_ERROR = 60              # catálogo caído: no martillar la API en cada request
+
+def _clave_cache(proximo=None):
+    """Clave de cache del catálogo, atada al periodo próximo.
+
+    Incluir el periodo evita que, al cruzar de mes, se siga sirviendo una
+    entrada cacheada con el `periodo_proximo()` del mes anterior.
+    """
+    if proximo is None:
+        proximo = periodo_proximo()
+    return f"{CACHE_KEY_CATALOGO}_{proximo}"
 
 def _pedir_periodo(periodo):
     """Una consulta al catálogo. Devuelve [] si la respuesta no es una lista.
@@ -147,14 +158,18 @@ def obtener_catalogo():
     del mes que viene todavía no se cargaron: retrocede mes a mes hasta
     MESES_FALLBACK veces y avisa con precios_vigentes=False.
 
-    Nunca levanta: ante cualquier error devuelve catálogo vacío para que la
-    vista de retención siga cargando.
+    Nunca levanta: ante cualquier error devuelve el catálogo normalizado que se
+    haya podido bajar (o vacío si ni eso) para que la vista de retención siga
+    cargando. El resultado degradado también se cachea con TTL_ERROR para no
+    martillar la API en cada request mientras el catálogo está caído.
     """
-    cacheado = cache.get(CACHE_KEY_CATALOGO)
+    proximo = periodo_proximo()
+    clave = _clave_cache(proximo)
+
+    cacheado = cache.get(clave)
     if cacheado:
         return cacheado["coberturas"], cacheado["periodo"], cacheado["precios_vigentes"]
 
-    proximo = periodo_proximo()
     periodo = proximo
     datos = []
 
@@ -166,15 +181,29 @@ def obtener_catalogo():
             periodo = periodo_anterior(periodo)
         else:
             print("Ningún periodo del catálogo de coberturas tiene precios cargados.")
-            return [], proximo, False
+            # `datos` trae el último periodo consultado: nombres, categorías y
+            # booleanos válidos, sólo sin precios. Se normaliza igual para no
+            # perder los semáforos (en particular el 🔴 de permite_ingreso=False).
+            coberturas = [normalizar(c) for c in datos]
+            cache.set(
+                clave,
+                {"coberturas": coberturas, "periodo": proximo, "precios_vigentes": False},
+                TTL_ERROR,
+            )
+            return coberturas, proximo, False
     except (requests.exceptions.RequestException, ValueError) as e:
         print(f"Error al consultar el catálogo de coberturas: {e}")
+        cache.set(
+            clave,
+            {"coberturas": [], "periodo": proximo, "precios_vigentes": False},
+            TTL_ERROR,
+        )
         return [], proximo, False
 
     coberturas = [normalizar(c) for c in datos]
     vigentes = periodo == proximo
     cache.set(
-        CACHE_KEY_CATALOGO,
+        clave,
         {"coberturas": coberturas, "periodo": periodo, "precios_vigentes": vigentes},
         TTL_VIGENTE if vigentes else TTL_FALLBACK,
     )

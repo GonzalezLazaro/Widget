@@ -6,7 +6,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from afiliados.coberturas import (
-    CACHE_KEY_CATALOGO,
+    MESES_FALLBACK,
+    _clave_cache,
     es_pago_unico,
     indice_por_id_externo,
     normalizar,
@@ -170,10 +171,10 @@ class ObtenerCatalogoTests(SimpleTestCase):
     """Un periodo sin precios cargados devuelve todos los valor_actual en 0."""
 
     def setUp(self):
-        cache.delete(CACHE_KEY_CATALOGO)
+        cache.delete(_clave_cache())
 
     def tearDown(self):
-        cache.delete(CACHE_KEY_CATALOGO)
+        cache.delete(_clave_cache())
 
     def _respuesta(self, payload):
         r = Mock()
@@ -205,18 +206,75 @@ class ObtenerCatalogoTests(SimpleTestCase):
         self.assertEqual(coberturas[0]["valor"], 999.0)
 
     def test_ningun_periodo_con_precios(self):
-        sin_precios = self._respuesta([cob(id_externo=1, valor_actual=0.0)])
+        """El catálogo se conserva (con valor 0): no debe desaparecer el 🔴.
+
+        `datos` trae los registros del último periodo consultado -- nombres,
+        categorías y booleanos válidos, sólo sin precios -- y eso es lo que
+        tiene que llegar a la vista, no una lista vacía.
+        """
+        sin_precios = self._respuesta([
+            cob(id_externo=1, valor_actual=0.0, permite_ingreso=False),
+            cob(id_externo=2, valor_actual=0.0),
+        ])
         with patch("afiliados.coberturas.requests.get", return_value=sin_precios):
             coberturas, periodo, vigentes = obtener_catalogo()
 
-        self.assertEqual(coberturas, [])
+        self.assertEqual(len(coberturas), 2)
+        self.assertEqual(periodo, periodo_proximo())
         self.assertFalse(vigentes)
+        self.assertEqual([c["valor"] for c in coberturas], [0, 0])
+        # El semáforo se deriva de los booleanos, no del precio: sigue el 🔴.
+        self.assertEqual(coberturas[0]["semaforo"], "rojo")
+
+    def test_ningun_periodo_con_precios_cachea_el_resultado(self):
+        """El fallback agotado también se cachea: no repetir las 4 requests."""
+        sin_precios = self._respuesta([cob(id_externo=1, valor_actual=0.0)])
+        with patch("afiliados.coberturas.requests.get",
+                   return_value=sin_precios) as get:
+            obtener_catalogo()
+            obtener_catalogo()
+
+        self.assertEqual(get.call_count, MESES_FALLBACK + 1)
 
     def test_api_caida_no_rompe(self):
         """La vista de retención tiene que cargar igual."""
         import requests as _requests
         with patch("afiliados.coberturas.requests.get",
                    side_effect=_requests.exceptions.ConnectionError("boom")):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertEqual(periodo, periodo_proximo())
+        self.assertFalse(vigentes)
+
+    def test_api_caida_cachea_el_resultado_degradado(self):
+        """Con el catálogo caído, la segunda carga no vuelve a pegarle a la API."""
+        import requests as _requests
+        with patch("afiliados.coberturas.requests.get",
+                   side_effect=_requests.exceptions.ConnectionError("boom")) as get:
+            obtener_catalogo()
+            obtener_catalogo()
+
+        self.assertEqual(get.call_count, 1)
+
+    def test_http_error_no_rompe(self):
+        """raise_for_status() puede levantar HTTPError ante un 4xx/5xx."""
+        import requests as _requests
+        respuesta = Mock()
+        respuesta.raise_for_status.side_effect = _requests.exceptions.HTTPError("500")
+        with patch("afiliados.coberturas.requests.get", return_value=respuesta):
+            coberturas, periodo, vigentes = obtener_catalogo()
+
+        self.assertEqual(coberturas, [])
+        self.assertEqual(periodo, periodo_proximo())
+        self.assertFalse(vigentes)
+
+    def test_json_invalido_no_rompe(self):
+        """.json() puede levantar ValueError con un cuerpo que no es JSON."""
+        respuesta = Mock()
+        respuesta.raise_for_status.return_value = None
+        respuesta.json.side_effect = ValueError("Expecting value")
+        with patch("afiliados.coberturas.requests.get", return_value=respuesta):
             coberturas, periodo, vigentes = obtener_catalogo()
 
         self.assertEqual(coberturas, [])
@@ -269,7 +327,7 @@ class CatalogoEndpointTests(TestCase):
     """
 
     def setUp(self):
-        cache.delete(CACHE_KEY_CATALOGO)
+        cache.delete(_clave_cache())
 
     def test_devuelve_solo_activas(self):
         catalogo = [normalizar(cob(id_externo=1, cbtActivo=0)),
