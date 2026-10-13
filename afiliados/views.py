@@ -1740,8 +1740,9 @@ def obtener_generadores_api(request, sector_origen):
 @csrf_exempt
 def cargar_bonificacion_externa(request, grupo):
     """
-    Carga una bonificación/descuento en el sistema externo (10.4.5.3:5000).
+    Carga el descuento manual en Gecros vía bonificaciones.nobis.com.ar.
     El porcentaje proviene del input "Manual (Cotizar)" del cotizador de retención.
+    Las reglas comerciales (RC) solo se consultan para cotizar; no se insertan.
     'modo' es fijo = "forzar".
     """
     if request.method != "POST":
@@ -1763,9 +1764,8 @@ def cargar_bonificacion_externa(request, grupo):
         headers = {"Content-Type": "application/json", "X-API-Token": api_token}
         api_url = f"https://bonificaciones.nobis.com.ar/api/individuales/{grupo}/insertar"
 
-        def _insertar(peri_desde, peri_hasta, porcentaje, rg_id=None, obs=None):
-            # obs por-item (ej. bonificación de regla comercial con su prefijo);
-            # si no viene, se usa la observación general del request.
+        def _insertar(peri_desde, peri_hasta, porcentaje, obs=None):
+            # obs por-item; si no viene, se usa la observación general del request.
             obs_final = obs if obs else observacion
             payload = {
                 "peri_desde": peri_desde,
@@ -1774,35 +1774,34 @@ def cargar_bonificacion_externa(request, grupo):
                 "modo": "forzar",            # fijo, no visible al usuario
                 "observacion": obs_final,
                 "usuario": usuario_api,
+                "grupo": grupo_api,
+                "reeval": False,
             }
-            # Insert de regla comercial: lleva rg_id (id de la regla) y NO 'grupo'.
-            # Insert manual (porcentaje "Nuevo" / tramos): lleva 'grupo' + reeval=True y NO rg_id.
-            if rg_id is not None:
-                payload["rg_id"] = rg_id
-            else:
-                payload["grupo"] = grupo_api
-                payload["reeval"] = True
             r = requests.post(api_url, json=payload, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
             ok = r.status_code in (200, 201)
             registrar(request, action="enviar_bonificacion", recurso="accion.enviar_bonificacion", target_type="grupo",
                       target_id=grupo, response_status=r.status_code, success=ok,
                       payload_summary={"peri_desde": peri_desde, "peri_hasta": peri_hasta,
-                                       "porcentaje": porcentaje, "rg_id": rg_id},
+                                       "porcentaje": porcentaje},
                       error_detail="" if ok else r.text)
             return {
                 "ok": ok,
                 "peri_desde": peri_desde,
                 "peri_hasta": peri_hasta,
                 "porcentaje": porcentaje,
-                "rg_id": rg_id,
                 "detalle": (None if ok else r.text),
             }
 
         # --- Modo escalonado: varios tramos, "seguir y reportar" ---
         if tramos:
+            # Una pestaña con la versión anterior de la página puede mandar items de
+            # regla comercial (con rg_id). Sin este corte se cargarían como descuento manual.
+            if any(t.get("rg_id") is not None for t in tramos):
+                return JsonResponse({"error": "La carga de reglas comerciales ya no está soportada. Recargue la página."},
+                                    status=400)
             resultados = [
                 _insertar(t.get("peri_desde"), t.get("peri_hasta"), t.get("porcentaje"),
-                          rg_id=t.get("rg_id"), obs=t.get("observacion"))
+                          obs=t.get("observacion"))
                 for t in tramos
             ]
             fallidos = [x for x in resultados if not x["ok"]]
@@ -1841,11 +1840,11 @@ def cargar_bonificacion_externa(request, grupo):
 @csrf_exempt
 def evaluar_bonificacion_externa(request):
     """
-    Evalúa (solo lectura) si el grupo familiar del titular tiene bonificaciones
-    adicionales según sus atributos en Gecros. Proxy hacia
+    Evalúa (solo lectura) con el motor de la app el descuento del grupo familiar
+    del titular para un período. Proxy hacia
     https://bonificaciones.nobis.com.ar/api/v1/grupos/evaluar para mantener el
-    BONIF_API_TOKEN fuera del front y evitar CORS. El cálculo del descuento a
-    aplicar lo hace el front con la respuesta cruda.
+    BONIF_API_TOKEN fuera del front y evitar CORS. El front toma
+    grupos[].descuento.total de la respuesta cruda para cotizar.
     """
     if request.method != "POST":
         return JsonResponse({'error': 'Método no permitido'}, status=405)
@@ -1860,7 +1859,7 @@ def evaluar_bonificacion_externa(request):
         api_token = os.environ.get("BONIF_API_TOKEN", "")
         headers = {"Content-Type": "application/json", "X-API-Token": api_token}
         api_url = "https://bonificaciones.nobis.com.ar/api/v1/grupos/evaluar"
-        payload = {"dni": int(dni), "periodo": periodo, "evaluar_gecros": True}
+        payload = {"dni": int(dni), "periodo": periodo, "evaluar_app": True}
 
         r = requests.post(api_url, json=payload, headers=headers, timeout=settings.REQUESTS_TIMEOUT)
         ok = r.status_code in (200, 201)
